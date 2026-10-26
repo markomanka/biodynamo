@@ -16,26 +16,38 @@
 #include <TF1.h>
 #include <TF2.h>
 #include <TF3.h>
-#include <TRandom3.h>
+#include <TRandom.h>
+
+#include <algorithm>
+#include <climits>
+#include <iterator>
+#include <random>
 #include "core/simulation.h"
+#include "core/util/random_algorithms.h"
 
 namespace bdm {
 
 // -----------------------------------------------------------------------------
-Random::Random() : generator_(new TRandom3()) {}
+namespace {
+/// Lets ROOT's TF1/TF2/TF3 draw their uniform numbers from a bdm::Random.
+class TRandomAdapter : public TRandom {
+ public:
+  explicit TRandomAdapter(Random* random) : random_(random) {}
+  Double_t Rndm() override { return 1.0 - random_->Uniform(); }  // (0, 1]
 
-// -----------------------------------------------------------------------------
+ private:
+  Random* random_;
+};
+}  // namespace
+
+Random::Random() { SetSeed(4357); }
+
 Random::Random(TRootIOCtor*) {}
 
-// -----------------------------------------------------------------------------
-Random::Random(const Random& other)
-    : generator_(static_cast<TRandom*>(other.generator_->Clone())) {}
+Random::Random(const Random& other) { *this = other; }
 
-// -----------------------------------------------------------------------------
 Random::~Random() {
-  if (generator_) {
-    delete generator_;
-  }
+  delete tf_adapter_;
   for (auto& el : udd_tf1_map_) {
     delete el.second;
   }
@@ -47,91 +59,118 @@ Random::~Random() {
   }
 }
 
-// -----------------------------------------------------------------------------
 Random& Random::operator=(const Random& other) {
   if (&other != this) {
-    if (generator_) {
-      delete generator_;
-    }
-    generator_ = static_cast<TRandom*>(other.generator_->Clone());
+    seed_ = other.seed_;
+    std::copy(std::begin(other.key_), std::end(other.key_), key_);
+    std::copy(std::begin(other.counter_), std::end(other.counter_), counter_);
+    std::copy(std::begin(other.buffer_), std::end(other.buffer_), buffer_);
+    buffer_position_ = other.buffer_position_;
   }
   return *this;
 }
 
-// -----------------------------------------------------------------------------
-real_t Random::Uniform(real_t max) { return generator_->Uniform(max); }
-
-// -----------------------------------------------------------------------------
-real_t Random::Uniform(real_t min, real_t max) {
-  return generator_->Uniform(min, max);
+double Random::NextUniform() {
+  return random_algorithms::ToUnitInterval(random_algorithms::PhiloxNext(
+      key_, counter_, buffer_, &buffer_position_));
 }
 
-// -----------------------------------------------------------------------------
-real_t Random::Gaus(real_t mean, real_t sigma) {
-  return generator_->Gaus(mean, sigma);
-}
-
-// -----------------------------------------------------------------------------
-real_t Random::Exp(real_t tau) { return generator_->Exp(tau); }
-
-// -----------------------------------------------------------------------------
-real_t Random::Landau(real_t mean, real_t sigma) {
-  return generator_->Landau(mean, sigma);
-}
-
-// -----------------------------------------------------------------------------
-real_t Random::PoissonD(real_t mean) { return generator_->PoissonD(mean); }
-
-// -----------------------------------------------------------------------------
-real_t Random::BreitWigner(real_t mean, real_t gamma) {
-  return generator_->BreitWigner(mean, gamma);
-}
-
-// -----------------------------------------------------------------------------
-unsigned Random::Integer(int max) { return generator_->Integer(max); }
-
-// -----------------------------------------------------------------------------
-int Random::Binomial(int ntot, real_t prob) {
-  return generator_->Binomial(ntot, prob);
-}
-
-// -----------------------------------------------------------------------------
-int Random::Poisson(real_t mean) { return generator_->Poisson(mean); }
-
-// -----------------------------------------------------------------------------
-MathArray<real_t, 2> Random::Circle(real_t r) {
-  MathArray<double, 2> ret_double;
-  generator_->Circle(ret_double[0], ret_double[1], static_cast<double>(r));
-  return {static_cast<real_t>(ret_double[0]),
-          static_cast<real_t>(ret_double[1])};
-}
-
-// -----------------------------------------------------------------------------
-MathArray<real_t, 3> Random::Sphere(real_t r) {
-  MathArray<double, 3> ret;
-  generator_->Sphere(ret[0], ret[1], ret[2], r);
-  return {static_cast<real_t>(ret[0]), static_cast<real_t>(ret[1]),
-          static_cast<real_t>(ret[2])};
-}
-
-// -----------------------------------------------------------------------------
-void Random::SetSeed(uint64_t seed) { generator_->SetSeed(seed); }
-
-// -----------------------------------------------------------------------------
-uint64_t Random::GetSeed() const { return generator_->GetSeed(); }
-
-// -----------------------------------------------------------------------------
-void Random::SetGenerator(TRandom* new_generator) {
-  if (generator_) {
-    delete generator_;
+TRandom* Random::GetTRandomAdapter() {
+  if (tf_adapter_ == nullptr) {
+    tf_adapter_ = new TRandomAdapter(this);
   }
-  generator_ = new_generator;
+  return tf_adapter_;
 }
 
-// -----------------------------------------------------------------------------
+real_t Random::Uniform(real_t max) {
+  return static_cast<real_t>(max * NextUniform());
+}
+
+real_t Random::Uniform(real_t min, real_t max) {
+  return static_cast<real_t>(min + (max - min) * NextUniform());
+}
+
+real_t Random::Gaus(real_t mean, real_t sigma) {
+  auto u = [this]() { return NextUniform(); };
+  return static_cast<real_t>(mean +
+                             sigma * random_algorithms::StandardNormal(u));
+}
+
+real_t Random::Exp(real_t tau) {
+  auto u = [this]() { return NextUniform(); };
+  return static_cast<real_t>(tau * random_algorithms::StandardExponential(u));
+}
+
+real_t Random::Landau(real_t mean, real_t sigma) {
+  if (sigma <= 0) {
+    return 0;
+  }
+  auto u = [this]() { return NextUniform(); };
+  return static_cast<real_t>(mean +
+                             sigma * random_algorithms::StandardLandau(u));
+}
+
+real_t Random::PoissonD(real_t mean) {
+  auto u = [this]() { return NextUniform(); };
+  return static_cast<real_t>(random_algorithms::Poisson(u, mean));
+}
+
+real_t Random::BreitWigner(real_t mean, real_t gamma) {
+  auto u = [this]() { return NextUniform(); };
+  return static_cast<real_t>(random_algorithms::BreitWigner(u, mean, gamma));
+}
+
+unsigned Random::Integer(int max) {
+  if (max <= 0) {
+    return 0;
+  }
+  return static_cast<unsigned>(max * NextUniform());
+}
+
+int Random::Binomial(int ntot, real_t prob) {
+  auto u = [this]() { return NextUniform(); };
+  return static_cast<int>(random_algorithms::Binomial(u, ntot, prob));
+}
+
+int Random::Poisson(real_t mean) {
+  auto u = [this]() { return NextUniform(); };
+  const double k = random_algorithms::Poisson(u, mean);
+  return k > INT_MAX ? INT_MAX : static_cast<int>(k);
+}
+
+MathArray<real_t, 2> Random::Circle(real_t r) {
+  const double phi = 2 * random_algorithms::kPi * NextUniform();
+  return {static_cast<real_t>(r * std::cos(phi)),
+          static_cast<real_t>(r * std::sin(phi))};
+}
+
+MathArray<real_t, 3> Random::Sphere(real_t r) {
+  auto u = [this]() { return NextUniform(); };
+  double x, y, z;
+  random_algorithms::PointOnSphere(u, r, &x, &y, &z);
+  return {static_cast<real_t>(x), static_cast<real_t>(y),
+          static_cast<real_t>(z)};
+}
+
+void Random::SetSeed(uint64_t seed) {
+  // Seed 0 keeps its previous meaning: pick a non-reproducible seed.
+  while (seed == 0) {
+    std::random_device device;
+    seed = (static_cast<uint64_t>(device()) << 32) ^ device();
+  }
+  seed_ = seed;
+  key_[0] = seed;
+  key_[1] = 0;
+  std::fill(std::begin(counter_), std::end(counter_), 0);
+  std::fill(std::begin(buffer_), std::end(buffer_), 0);
+  buffer_position_ = 4;
+}
+
+uint64_t Random::GetSeed() const { return seed_; }
+
 template <typename TSample>
 TSample DistributionRng<TSample>::Sample() {
-  auto* rng = Simulation::GetActive()->GetRandom()->generator_;
+  auto* rng = Simulation::GetActive()->GetRandom();
   return SampleImpl(rng);
 }
 template real_t DistributionRng<real_t>::Sample();
@@ -140,7 +179,7 @@ template int DistributionRng<int>::Sample();
 // -----------------------------------------------------------------------------
 template <typename TSample>
 MathArray<TSample, 2> DistributionRng<TSample>::Sample2() {
-  auto* rng = Simulation::GetActive()->GetRandom()->generator_;
+  auto* rng = Simulation::GetActive()->GetRandom();
   return Sample2Impl(rng);
 }
 template MathArray<real_t, 2> DistributionRng<real_t>::Sample2();
@@ -148,16 +187,16 @@ template MathArray<int, 2> DistributionRng<int>::Sample2();
 
 // -----------------------------------------------------------------------------
 template <typename TSample>
-MathArray<TSample, 2> DistributionRng<TSample>::Sample2Impl(TRandom* rng) {
+MathArray<TSample, 2> DistributionRng<TSample>::Sample2Impl(Random* rng) {
   return MathArray<TSample, 2>({Sample(), Sample()});
 }
-template MathArray<real_t, 2> DistributionRng<real_t>::Sample2Impl(TRandom*);
-template MathArray<int, 2> DistributionRng<int>::Sample2Impl(TRandom*);
+template MathArray<real_t, 2> DistributionRng<real_t>::Sample2Impl(Random*);
+template MathArray<int, 2> DistributionRng<int>::Sample2Impl(Random*);
 
 // -----------------------------------------------------------------------------
 template <typename TSample>
 MathArray<TSample, 3> DistributionRng<TSample>::Sample3() {
-  auto* rng = Simulation::GetActive()->GetRandom()->generator_;
+  auto* rng = Simulation::GetActive()->GetRandom();
   return Sample3Impl(rng);
 }
 template MathArray<real_t, 3> DistributionRng<real_t>::Sample3();
@@ -165,17 +204,17 @@ template MathArray<int, 3> DistributionRng<int>::Sample3();
 
 // -----------------------------------------------------------------------------
 template <typename TSample>
-MathArray<TSample, 3> DistributionRng<TSample>::Sample3Impl(TRandom* rng) {
+MathArray<TSample, 3> DistributionRng<TSample>::Sample3Impl(Random* rng) {
   return MathArray<TSample, 3>(
       {SampleImpl(rng), SampleImpl(rng), SampleImpl(rng)});
 }
-template MathArray<real_t, 3> DistributionRng<real_t>::Sample3Impl(TRandom*);
-template MathArray<int, 3> DistributionRng<int>::Sample3Impl(TRandom*);
+template MathArray<real_t, 3> DistributionRng<real_t>::Sample3Impl(Random*);
+template MathArray<int, 3> DistributionRng<int>::Sample3Impl(Random*);
 
 // -----------------------------------------------------------------------------
 UniformRng::UniformRng(real_t min, real_t max) : min_(min), max_(max) {}
 UniformRng::~UniformRng() = default;
-real_t UniformRng::SampleImpl(TRandom* rng) { return rng->Uniform(min_, max_); }
+real_t UniformRng::SampleImpl(Random* rng) { return rng->Uniform(min_, max_); }
 
 UniformRng Random::GetUniformRng(real_t min, real_t max) const {
   return UniformRng(min, max);
@@ -184,7 +223,7 @@ UniformRng Random::GetUniformRng(real_t min, real_t max) const {
 // -----------------------------------------------------------------------------
 GausRng::GausRng(real_t mean, real_t sigma) : mean_(mean), sigma_(sigma) {}
 GausRng::~GausRng() = default;
-real_t GausRng::SampleImpl(TRandom* rng) { return rng->Gaus(mean_, sigma_); }
+real_t GausRng::SampleImpl(Random* rng) { return rng->Gaus(mean_, sigma_); }
 
 GausRng Random::GetGausRng(real_t mean, real_t sigma) const {
   return GausRng(mean, sigma);
@@ -193,16 +232,14 @@ GausRng Random::GetGausRng(real_t mean, real_t sigma) const {
 // -----------------------------------------------------------------------------
 ExpRng::ExpRng(real_t tau) : tau_(tau) {}
 ExpRng::~ExpRng() = default;
-real_t ExpRng::SampleImpl(TRandom* rng) { return rng->Exp(tau_); }
+real_t ExpRng::SampleImpl(Random* rng) { return rng->Exp(tau_); }
 
 ExpRng Random::GetExpRng(real_t tau) const { return ExpRng(tau); }
 
 // -----------------------------------------------------------------------------
 LandauRng::LandauRng(real_t mean, real_t sigma) : mean_(mean), sigma_(sigma) {}
 LandauRng::~LandauRng() = default;
-real_t LandauRng::SampleImpl(TRandom* rng) {
-  return rng->Landau(mean_, sigma_);
-}
+real_t LandauRng::SampleImpl(Random* rng) { return rng->Landau(mean_, sigma_); }
 
 LandauRng Random::GetLandauRng(real_t mean, real_t sigma) const {
   return LandauRng(mean, sigma);
@@ -211,7 +248,7 @@ LandauRng Random::GetLandauRng(real_t mean, real_t sigma) const {
 // -----------------------------------------------------------------------------
 PoissonDRng::PoissonDRng(real_t mean) : mean_(mean) {}
 PoissonDRng::~PoissonDRng() = default;
-real_t PoissonDRng::SampleImpl(TRandom* rng) { return rng->PoissonD(mean_); }
+real_t PoissonDRng::SampleImpl(Random* rng) { return rng->PoissonD(mean_); }
 
 PoissonDRng Random::GetPoissonDRng(real_t mean) const {
   return PoissonDRng(mean);
@@ -221,7 +258,7 @@ PoissonDRng Random::GetPoissonDRng(real_t mean) const {
 BreitWignerRng::BreitWignerRng(real_t mean, real_t gamma)
     : mean_(mean), gamma_(gamma) {}
 BreitWignerRng::~BreitWignerRng() = default;
-real_t BreitWignerRng::SampleImpl(TRandom* rng) {
+real_t BreitWignerRng::SampleImpl(Random* rng) {
   return rng->BreitWigner(mean_, gamma_);
 }
 
@@ -234,13 +271,10 @@ UserDefinedDistRng1D::UserDefinedDistRng1D(TF1* function, const char* option)
     : function_(function), option_(option) {}
 UserDefinedDistRng1D::~UserDefinedDistRng1D() = default;
 
-// TODO(Lukas) after the update to ROOT 6.24 pass
-// rng to GetRandom to avoid performance issue.
-// also pass option_ to GetRandom.
-real_t UserDefinedDistRng1D::SampleImpl(TRandom* rng) {
+real_t UserDefinedDistRng1D::SampleImpl(Random* rng) {
   auto min = function_->GetXmin();
   auto max = function_->GetXmax();
-  return function_->GetRandom(min, max);
+  return function_->GetRandom(min, max, rng->GetTRandomAdapter());
 }
 void UserDefinedDistRng1D::Draw(const char* option) { function_->Draw(option); }
 TF1* UserDefinedDistRng1D::GetTF1() { return function_; }
@@ -269,17 +303,14 @@ UserDefinedDistRng2D::UserDefinedDistRng2D(TF2* function, const char* option)
     : function_(function), option_(option) {}
 UserDefinedDistRng2D::~UserDefinedDistRng2D() = default;
 
-// TODO(Lukas) after the update to ROOT 6.24 pass
-// rng to GetRandom to avoid performance issue.
-// also pass option_ to GetRandom.
-real_t UserDefinedDistRng2D::SampleImpl(TRandom* rng) {
+real_t UserDefinedDistRng2D::SampleImpl(Random* rng) {
   auto min = function_->GetXmin();
   auto max = function_->GetXmax();
-  return function_->GetRandom(min, max);
+  return function_->GetRandom(min, max, rng->GetTRandomAdapter());
 }
-MathArray<real_t, 2> UserDefinedDistRng2D::Sample2Impl(TRandom* rng) {
+MathArray<real_t, 2> UserDefinedDistRng2D::Sample2Impl(Random* rng) {
   MathArray<double, 2> ret;
-  function_->GetRandom2(ret[0], ret[1]);
+  function_->GetRandom2(ret[0], ret[1], rng->GetTRandomAdapter());
   return {static_cast<real_t>(ret[0]), static_cast<real_t>(ret[1])};
 }
 void UserDefinedDistRng2D::Draw(const char* option) { function_->Draw(option); }
@@ -308,22 +339,19 @@ UserDefinedDistRng3D::UserDefinedDistRng3D(TF3* function, const char* option)
     : function_(function), option_(option) {}
 UserDefinedDistRng3D::~UserDefinedDistRng3D() = default;
 
-// TODO(Lukas) after the update to ROOT 6.24 pass
-// rng to GetRandom to avoid performance issue.
-// also pass option_ to GetRandom.
-real_t UserDefinedDistRng3D::SampleImpl(TRandom* rng) {
+real_t UserDefinedDistRng3D::SampleImpl(Random* rng) {
   auto min = function_->GetXmin();
   auto max = function_->GetXmax();
-  return function_->GetRandom(min, max);
+  return function_->GetRandom(min, max, rng->GetTRandomAdapter());
 }
-MathArray<real_t, 2> UserDefinedDistRng3D::Sample2Impl(TRandom* rng) {
+MathArray<real_t, 2> UserDefinedDistRng3D::Sample2Impl(Random* rng) {
   MathArray<double, 2> ret;
-  function_->GetRandom2(ret[0], ret[1]);
+  function_->GetRandom2(ret[0], ret[1], rng->GetTRandomAdapter());
   return {static_cast<real_t>(ret[0]), static_cast<real_t>(ret[1])};
 }
-MathArray<real_t, 3> UserDefinedDistRng3D::Sample3Impl(TRandom* rng) {
+MathArray<real_t, 3> UserDefinedDistRng3D::Sample3Impl(Random* rng) {
   MathArray<double, 3> ret;
-  function_->GetRandom3(ret[0], ret[1], ret[2]);
+  function_->GetRandom3(ret[0], ret[1], ret[2], rng->GetTRandomAdapter());
   return {static_cast<real_t>(ret[0]), static_cast<real_t>(ret[1]),
           static_cast<real_t>(ret[2])};
 }
@@ -351,9 +379,7 @@ UserDefinedDistRng3D Random::GetUserDefinedDistRng3D(
 // -----------------------------------------------------------------------------
 BinomialRng::BinomialRng(int ntot, real_t prob) : ntot_(ntot), prob_(prob) {}
 BinomialRng::~BinomialRng() = default;
-int BinomialRng::SampleImpl(TRandom* rng) {
-  return rng->Binomial(ntot_, prob_);
-}
+int BinomialRng::SampleImpl(Random* rng) { return rng->Binomial(ntot_, prob_); }
 
 BinomialRng Random::GetBinomialRng(int ntot, real_t prob) const {
   return BinomialRng(ntot, prob);
@@ -362,7 +388,7 @@ BinomialRng Random::GetBinomialRng(int ntot, real_t prob) const {
 // -----------------------------------------------------------------------------
 PoissonRng::PoissonRng(real_t mean) : mean_(mean) {}
 PoissonRng::~PoissonRng() = default;
-int PoissonRng::SampleImpl(TRandom* rng) { return rng->Poisson(mean_); }
+int PoissonRng::SampleImpl(Random* rng) { return rng->Poisson(mean_); }
 
 PoissonRng Random::GetPoissonRng(real_t mean) const { return PoissonRng(mean); }
 
