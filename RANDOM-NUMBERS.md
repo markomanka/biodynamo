@@ -7,7 +7,7 @@ runs made with the official BioDynaMo or with this fork before the switch. They 
 
 ## What changed
 
-| | Before (official BioDynaMo, this fork up to tag `before-philox`) | Now |
+| | Before (official BioDynaMo, this fork up to branch `before-philox`) | Now |
 | --- | --- | --- |
 | Generator | `TRandom3` from ROOT | Philox4x64-10 (Salmon et al., SC'11); the raw stream equals `numpy.random.Philox(key=[seed, 0])` |
 | Seeding per thread | thread `t` uses `random_seed * (t + 1)` | unchanged |
@@ -47,7 +47,7 @@ runs made with the official BioDynaMo or with this fork before the switch. They 
 ## Reproducing earlier results exactly
 
 Use the version that produced them, with the same seed and number of threads: the official BioDynaMo
-release, or this fork at tag `before-philox`. Checkpoints written by those versions continue exactly only
+release, or this fork at branch `before-philox`. Checkpoints written by those versions continue exactly only
 with those versions.
 
 ## Reproducing BioDynaMo's stream in Python
