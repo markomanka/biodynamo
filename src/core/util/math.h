@@ -133,16 +133,17 @@ struct Math {
   }
 };
 
-/// Normal probability density, same definition as ROOT::Math::normal_pdf(x, sigma, mean).
+/// Normal probability density, same definition as ROOT::Math::normal_pdf(x,
+/// sigma, mean).
 inline real_t NormalPdf(real_t x, real_t sigma, real_t mean) {
   const real_t z = (x - mean) / sigma;
   return std::exp(static_cast<real_t>(-0.5) * z * z) /
          (std::abs(sigma) * std::sqrt(static_cast<real_t>(2) * Math::kPi));
 }
 
-/// Poisson probability of floor(x) events, as ROOT::Math::poisson_pdf(unsigned n, mu)
-/// for x >= 0. Returns 0 for x < 0, where the ROOT call converted a negative value
-/// to unsigned (undefined behaviour).
+/// Poisson probability of floor(x) events, as ROOT::Math::poisson_pdf(unsigned
+/// n, mu) for x >= 0. Returns 0 for x < 0, where the ROOT call converted a
+/// negative value to unsigned (undefined behaviour).
 inline real_t PoissonPdf(real_t x, real_t mu) {
   if (x < 0) {
     return 0;

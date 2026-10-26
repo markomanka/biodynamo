@@ -286,7 +286,7 @@ std::array<NeuriteElement*, 2> NeuriteElement::Bifurcate(
   // check it is a terminal branch
   if (daughter_left_ != nullptr) {
     Log::Fatal("NeuriteElements",
-          "Bifurcation only allowed on a terminal neurite element");
+               "Bifurcation only allowed on a terminal neurite element");
   }
   NeuriteBifurcationEvent event(length, diameter_1, diameter_2, direction_1,
                                 direction_2);
@@ -903,8 +903,9 @@ void NeuriteElement::RemoveProximalNeuriteElement() {
 NeuriteElement* NeuriteElement::ExtendSideNeuriteElement(
     real_t length, real_t diameter, const Real3& direction) {
   if (daughter_right_ != nullptr) {
-    Log::Fatal("NeuriteElement",
-          "Can't extend a side neurite since daughter_right is not a nullptr!");
+    Log::Fatal(
+        "NeuriteElement",
+        "Can't extend a side neurite since daughter_right is not a nullptr!");
   }
 
   SideNeuriteExtensionEvent event{length, diameter, direction};

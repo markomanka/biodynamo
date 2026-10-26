@@ -18,8 +18,8 @@
 #include <atomic>
 #include <cerrno>
 #include <cstdio>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <iostream>
 #include <mutex>
@@ -30,7 +30,8 @@
 namespace bdm {
 
 /// Log levels. The numbers match ROOT's (kPrint, kInfo, ...) so existing
-/// verbosity settings keep their meaning; messages below the current level are dropped.
+/// verbosity settings keep their meaning; messages below the current level are
+/// dropped.
 enum LogLevel : int {
   kLogPrint = 0,
   kLogInfo = 1000,
@@ -41,13 +42,19 @@ enum LogLevel : int {
   kLogFatal = 6000
 };
 
-/// @brief Logging without ROOT. Output keeps ROOT's format: "<Level> in <location>: message"
+/// @brief Logging without ROOT. Output keeps ROOT's format: "<Level> in
+/// <location>: message"
 ///
 class Log {
  public:
-  /// Messages with a level below this are not printed (ROOT: gErrorIgnoreLevel).
-  static int GetLevel() { return LevelStorage().load(std::memory_order_relaxed); }
-  static void SetLevel(int level) { LevelStorage().store(level, std::memory_order_relaxed); }
+  /// Messages with a level below this are not printed (ROOT:
+  /// gErrorIgnoreLevel).
+  static int GetLevel() {
+    return LevelStorage().load(std::memory_order_relaxed);
+  }
+  static void SetLevel(int level) {
+    LevelStorage().store(level, std::memory_order_relaxed);
+  }
 
   template <typename... Args>
   static void Debug(const std::string& location, const Args&... parts) {
