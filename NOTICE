@@ -2,3 +2,7 @@ This product includes software developed by:
   * [CERN](http://home.cern)
   * [University of Surrey](https://www.ncl.ac.uk/)
   * [Innopolis University](https://university.innopolis.ru/en/)
+
+This repository is a modified version of BioDynaMo (https://github.com/BioDynaMo/biodynamo),
+maintained by markomanka. The modifications are recorded in its git history and described in
+SKUNKWORKS.md. They are not part of, or endorsed by, the BioDynaMo project.

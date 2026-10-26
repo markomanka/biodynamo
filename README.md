@@ -16,15 +16,20 @@
   |
   <a href="https://www.biodynamo.org/developer-guide/">Developer's guide</a>
   |
-  <a href="https://github.com/BioDynaMo/biodynamo/issues/new">Report an issue or bug</a>
+  <a href="https://github.com/markomanka/biodynamo/issues/new">Report an issue with this fork</<p align="center">
+  <a href="https://github.com/markomanka/biodynamo/actions/workflows/ubuntu-ci.yml"><img src="https://github.com/markomanka/biodynamo/actions/workflows/ubuntu-ci.yml/badge.svg"/></a>
+  <a href="https://github.com/markomanka/biodynamo/actions/workflows/macos-ci.yml"><img src="https://github.com/markomanka/biodynamo/actions/workflows/macos-ci.yml/badge.svg"/></a>
+  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/></a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/BioDynaMo/biodynamo/actions/workflows/ubuntu-system-ci.yml"><img src="https://github.com/BioDynaMo/biodynamo/actions/workflows/ubuntu-system-ci.yml/badge.svg"/></a>
-  <a href="https://github.com/BioDynaMo/biodynamo/actions/workflows/macos-system-ci.yml"><img src="https://github.com/BioDynaMo/biodynamo/actions/workflows/macos-system-ci.yml/badge.svg"/></a>
-  <a href="https://sonarcloud.io/project/overview?id=BioDynaMo_biodynamo"><img src="https://sonarcloud.io/api/project_badges/measure?project=BioDynaMo_biodynamo&metric=alert_status"/></a>
-  <a href="https://discord.com/invite/kTcTTNFy"><img src="https://img.shields.io/discord/1029690454574370816"/></a>
-  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/></a>
+> [!IMPORTANT]
+> **This is an independent, experimental ("skunkworks") fork of BioDynaMo, not the official project.**
+> It aims to remove the dependencies that keep BioDynaMo out of general-purpose software
+> distributions, starting with ROOT, and at the same time to improve its scalability and its
+> interoperability with other agent-based simulation suites such as PhysiCell.
+> It is not affiliated with or endorsed by the BioDynaMo team. For the official project, releases
+> and support, see [BioDynaMo/biodynamo](https://github.com/BioDynaMo/biodynamo).
+> Goals, status and how to build this fork: [SKUNKWORKS.md](SKUNKWORKS.md).e-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/></a>
 </p>
 
 ## What is BioDynaMo?
@@ -36,7 +41,9 @@ BioDynaMo is a software platform to easily create, run, and visualise 3D agent-b
 
 ## Installation
 
-Simply run the following command:
+The command below installs the official BioDynaMo release, not this fork. To build this fork from
+source, see [SKUNKWORKS.md](SKUNKWORKS.md#building-this-fork).
+
 
 ```
 curl https://biodynamo.github.io/install | bash
@@ -49,7 +56,7 @@ For more information, check out our [user's guide](https://www.biodynamo.org/use
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/BioDynaMo/biodynamoOnline)
 
-Click the badge above to launch a pre-configured BioDynaMo environment in your browser.
+Click the badge above to launch a pre-configured environment of the official BioDynaMo in your browser.
 You just need a free GitHub account (120 core-hours/month free).
 
 
