@@ -316,7 +316,16 @@ std::string ParaviewAdaptor::BuildPythonScriptString(
   return script.str();
 }
 
+VisualizationAdaptor* ParaviewAdaptor::NewAdaptor() {
+  return new ParaviewAdaptor();
+}
+
 }  // namespace bdm
+
+// Entry point looked up with dlsym by VisualizationAdaptor::Create.
+extern "C" bdm::VisualizationAdaptor* BdmCreateVisualizationAdaptor() {
+  return bdm::ParaviewAdaptor::NewAdaptor();
+}
 
 #else
 

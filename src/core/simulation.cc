@@ -58,6 +58,44 @@
 
 namespace bdm {
 
+namespace {
+/// Total size of the regular files below `dir`, formatted like `du -h`
+/// (e.g. "4.0K", "12M"). Counts file sizes, not allocated blocks.
+std::string DirectorySizeString(const std::string& dir) {
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  uintmax_t total = 0;
+  for (fs::recursive_directory_iterator
+           it(dir, fs::directory_options::skip_permission_denied, ec),
+       end;
+       !ec && it != end; it.increment(ec)) {
+    std::error_code file_ec;
+    if (it->is_regular_file(file_ec)) {
+      auto size = it->file_size(file_ec);
+      if (!file_ec) {
+        total += size;
+      }
+    }
+  }
+  const char* units = "BKMGTP";
+  double value = static_cast<double>(total);
+  int unit = 0;
+  while (value >= 1024 && unit < 5) {
+    value /= 1024;
+    ++unit;
+  }
+  char buffer[32];
+  if (unit == 0) {
+    std::snprintf(buffer, sizeof(buffer), "%juB", total);
+  } else if (value < 10) {
+    std::snprintf(buffer, sizeof(buffer), "%.1f%c", value, units[unit]);
+  } else {
+    std::snprintf(buffer, sizeof(buffer), "%.0f%c", value, units[unit]);
+  }
+  return buffer;
+}
+}  // namespace
+
 /// Implementation for `Simulation`:
 /// It must be separate to avoid circular dependencies.
 
@@ -159,9 +197,7 @@ std::ostream& operator<<(std::ostream& os, Simulation& sim) {
   sim.rm_->ForEachDiffusionGrid([&os](auto* dgrid) { dgrid->PrintInfo(os); });
 
   os << "Output directory\t\t: " << sim.GetOutputDir() << std::endl;
-  os << "  size\t\t\t\t: "
-     << gSystem->GetFromPipe(
-            Concat("du -sh ", sim.GetOutputDir(), " | cut -f1").c_str())
+  os << "  size\t\t\t\t: " << DirectorySizeString(sim.GetOutputDir())
      << std::endl;
   os << "BioDynaMo version:\t\t: " << Version::String() << std::endl;
   os << "BioDynaMo real type:\t\t: " << kRealtName << std::endl;

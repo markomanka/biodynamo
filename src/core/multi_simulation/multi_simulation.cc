@@ -17,7 +17,6 @@
 #include "mpi.h"
 
 #include "TROOT.h"
-#include "TSystem.h"
 
 #include <cstdlib>
 #include <fstream>

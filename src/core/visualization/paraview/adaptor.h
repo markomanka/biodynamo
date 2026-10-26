@@ -44,6 +44,10 @@ class ParaviewAdaptor : private VisualizationAdaptor {
 
   ~ParaviewAdaptor() override;
 
+  /// Creates an adaptor; called through BdmCreateVisualizationAdaptor() when
+  /// VisualizationAdaptor::Create loads this library.
+  static VisualizationAdaptor* NewAdaptor();
+
   /// Visualize one timestep based on the configuration in `Param`
   void Visualize() override;
 

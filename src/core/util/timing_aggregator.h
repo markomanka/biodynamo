@@ -20,8 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "TSystem.h"
-
 #include "core/simulation.h"
 #include "core/util/math.h"
 
