@@ -38,10 +38,11 @@ void NeuronSoma::Initialize(const NewAgentEvent& event) {
   if (event.GetUid() == CellDivisionEvent::kUid) {
     auto* mother = bdm_static_cast<NeuronSoma*>(event.existing_agent);
     if (mother->daughters_.size() != 0) {
-      Fatal("NeuronSoma",
-            "Dividing a neuron soma with attached neurites is not supported "
-            "in the default implementation! If you want to change this "
-            "behavior derive from this class and overwrite this method.");
+      Log::Fatal(
+          "NeuronSoma",
+          "Dividing a neuron soma with attached neurites is not supported "
+          "in the default implementation! If you want to change this "
+          "behavior derive from this class and overwrite this method.");
     }
   }
 }

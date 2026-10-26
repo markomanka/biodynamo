@@ -285,8 +285,8 @@ std::array<NeuriteElement*, 2> NeuriteElement::Bifurcate(
   // 1) physical bifurcation
   // check it is a terminal branch
   if (daughter_left_ != nullptr) {
-    Fatal("NeuriteElements",
-          "Bifurcation only allowed on a terminal neurite element");
+    Log::Fatal("NeuriteElements",
+               "Bifurcation only allowed on a terminal neurite element");
   }
   NeuriteBifurcationEvent event(length, diameter_1, diameter_2, direction_1,
                                 direction_2);
@@ -347,7 +347,7 @@ void NeuriteElement::RemoveDaughter(
     daughter_right_ = nullptr;
     return;
   }
-  Fatal("NeuriteElement", "Given object is not a daughter!");
+  Log::Fatal("NeuriteElement", "Given object is not a daughter!");
 }
 
 void NeuriteElement::UpdateRelative(const NeuronOrNeurite& old_relative,
@@ -369,7 +369,7 @@ void NeuriteElement::UpdateRelative(const NeuronOrNeurite& old_relative,
 Real3 NeuriteElement::ForceTransmittedFromDaugtherToMother(
     const NeuronOrNeurite& mother) {
   if (mother_ != &mother) {
-    Fatal("NeuriteElement", "Given object is not the mother!");
+    Log::Fatal("NeuriteElement", "Given object is not the mother!");
     return {0, 0, 0};
   }
 
@@ -903,8 +903,9 @@ void NeuriteElement::RemoveProximalNeuriteElement() {
 NeuriteElement* NeuriteElement::ExtendSideNeuriteElement(
     real_t length, real_t diameter, const Real3& direction) {
   if (daughter_right_ != nullptr) {
-    Fatal("NeuriteElement",
-          "Can't extend a side neurite since daughter_right is not a nullptr!");
+    Log::Fatal(
+        "NeuriteElement",
+        "Can't extend a side neurite since daughter_right is not a nullptr!");
   }
 
   SideNeuriteExtensionEvent event{length, diameter, direction};
