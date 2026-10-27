@@ -33,8 +33,8 @@ Replacements must be compatible with Apache-2.0, so GPL libraries are excluded.
 
 | Area | Replacement | Status |
 | --- | --- | --- |
-| Logging, math helpers | In-house, with ROOT's output format and verbosity levels | Done on `rootfree/phase1` |
-| Random numbers and distributions | Counter-based Philox (Random123) or PCG; Boost.Random and Boost.Math | Planned; reproducibility policy to decide |
+| Logging, math helpers | In-house, with ROOT's output format and verbosity levels | Done (pull request #1) |
+| Random numbers and distributions | Philox4x64-10 with in-house distribution algorithms; see [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md) | Done; user-defined distributions still use ROOT's function classes |
 | Plugin loading, system information | `dlopen`, `std::chrono`, `std::filesystem` | Planned |
 | Plotting | CSV or JSON export with matplotlib; optional matplot++ in C++ | Planned |
 | Notebooks | xeus-cpp Jupyter kernel; pyvista for 3D views | Planned |
@@ -65,13 +65,15 @@ Replacements must be compatible with Apache-2.0, so GPL libraries are excluded.
 
 | Branch | Content | State |
 | --- | --- | --- |
-| `rootfree/phase1` | Logging and math helpers without ROOT; `BDM_ANY_PYTHON` option | In review in this repository |
+| `rootfree/phase1` | Logging and math helpers without ROOT; `BDM_ANY_PYTHON` option | Merged into `master` (pull request #1) |
+| `rootfree/phase1-part2` | Plugin loading with `dlopen`; output-folder size without a shell | In review |
+| `rootfree/rng` | Philox4x64-10 random number generator; changes stochastic results (see [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md)) | In review |
 
 ## Building this fork
 
 Follow BioDynaMo's [developer guide](https://www.biodynamo.org/developer-guide/). To build against a ROOT that does
-not come from the prebuilt bundle, for example conda-forge's, add `-DBDM_ANY_PYTHON=ON` (available once
-`rootfree/phase1` is merged). One configuration that builds:
+not come from the prebuilt bundle, for example conda-forge's, add `-DBDM_ANY_PYTHON=ON`. One configuration that
+builds:
 
 ```
 conda create -n bdm -c conda-forge root cxx-compiler cmake ninja openmpi "armadillo<13"
