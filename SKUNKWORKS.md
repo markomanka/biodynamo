@@ -35,7 +35,7 @@ Replacements must be compatible with Apache-2.0, so GPL libraries are excluded.
 | --- | --- | --- |
 | Logging, math helpers | In-house, with ROOT's output format and verbosity levels | Done (pull request #1) |
 | Random numbers and distributions | Philox4x64-10 with in-house distribution algorithms; see [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md) | Done; user-defined distributions still use ROOT's function classes |
-| Plugin loading, system information | `dlopen`, `std::chrono`, `std::filesystem` | Planned |
+| Plugin loading, system information | `std::filesystem`; `dlopen` for plugins once the agent export no longer compiles code with Cling | Folder size done (pull request #3); plugin loading in phase 3 |
 | Plotting | CSV or JSON export with matplotlib; optional matplot++ in C++ | Planned |
 | Notebooks | xeus-cpp Jupyter kernel; pyvista for 3D views | Planned |
 | Reflection, checkpoints, parameter JSON, MPI messages | A source generator built on Clang LibTooling, and a separate I/O library with HDF5 files | Planned |
@@ -66,8 +66,9 @@ Replacements must be compatible with Apache-2.0, so GPL libraries are excluded.
 | Branch | Content | State |
 | --- | --- | --- |
 | `rootfree/phase1` | Logging and math helpers without ROOT; `BDM_ANY_PYTHON` option | Merged into `master` (pull request #1) |
-| `rootfree/phase1-part2` | Plugin loading with `dlopen`; output-folder size without a shell | In review |
-| `rootfree/rng` | Philox4x64-10 random number generator; changes stochastic results (see [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md)) | In review |
+| `rootfree/phase1-part2` | Output-folder size without a shell. Plugin loading stays with ROOT until phase 3: with `dlopen`, the ParaView agent export failed on macOS | Merged into `master` (pull request #3) |
+| `rootfree/rng` | Philox4x64-10 random number generator; changes stochastic results (see [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md)) | Merged into `master` (pull request #4) |
+| `rootfree/version-tags` | Version detection ignores tags that are not version numbers | Merged into `master` (pull request #6) |
 
 ## Building this fork
 
@@ -97,4 +98,6 @@ cmake --build build
 ## Licence and attribution
 
 BioDynaMo is developed by the BioDynaMo collaboration (see [NOTICE](NOTICE)) and licensed under Apache-2.0;
-this fork keeps that licence. The modifications are recorded in this repository's history and noted in NOTICE.
+this fork keeps that licence. The modifications are recorded in this repository's history and noted in NOTICE. Third-party code adapted
+here is listed in NOTICE, with its licences in `third_party/licenses/`. Files added in this fork carry their
+own copyright line below BioDynaMo's header, and modified files say so below it.

@@ -11,6 +11,9 @@
 // regarding copyright ownership.
 //
 // -----------------------------------------------------------------------------
+//
+// Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+// (https://github.com/markomanka/biodynamo); see its git history.
 
 #ifndef CORE_MULTI_SIMULATION_EXPERIMENT_H_
 #define CORE_MULTI_SIMULATION_EXPERIMENT_H_

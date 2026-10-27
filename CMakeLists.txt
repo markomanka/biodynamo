@@ -11,6 +11,9 @@
 # regarding copyright ownership.
 #
 # -----------------------------------------------------------------------------
+#
+# Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+# (https://github.com/markomanka/biodynamo); see its git history.
 
 cmake_minimum_required(VERSION 3.19.3 FATAL_ERROR)
 

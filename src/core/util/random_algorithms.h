@@ -11,6 +11,11 @@
 // regarding copyright ownership.
 //
 // -----------------------------------------------------------------------------
+//
+// This file: Copyright (C) 2026 markomanka. Written for the BioDynaMo
+// skunkworks fork (https://github.com/markomanka/biodynamo) and licensed under
+// the Apache License, Version 2.0. The header above is kept because
+// BioDynaMo's repository checks require it on every source file.
 
 #ifndef CORE_UTIL_RANDOM_ALGORITHMS_H_
 #define CORE_UTIL_RANDOM_ALGORITHMS_H_
@@ -129,6 +134,11 @@ double StandardLandau(U& u) {
 
 /// Poisson-distributed count with the given mean: multiplication method for
 /// mean < 10, transformed rejection (Hoermann's PTRS, 1993) otherwise.
+/// The PTRS branch is adapted from NumPy's random_poisson_ptrs
+/// (numpy/random/src/distributions/distributions.c), Copyright (c) 2019 Kevin
+/// Sheppard and (c) 2005-2025 NumPy Developers, used under the BSD 3-Clause
+/// License: see third_party/licenses/NumPy-LICENSE.txt and
+/// third_party/licenses/NumPy-random-LICENSE.md.
 template <typename U>
 double Poisson(U& u, double mean) {
   if (!(mean > 0)) {
@@ -169,6 +179,8 @@ double Poisson(U& u, double mean) {
 /// Binomial count of successes in n trials with probability p. Exact
 /// inversion: from 0 when n * min(p, 1 - p) < 10, otherwise from the mode
 /// outwards. Consumes 1 value.
+/// Inversion from 0 is the BINV algorithm (Kachitvichyanukul and Schmeiser,
+/// 1988).
 template <typename U>
 int64_t Binomial(U& u, int64_t n, double p) {
   if (n <= 0 || !(p > 0)) {
