@@ -632,7 +632,7 @@ build_shared_library(biodynamo
                    SELECTION selection-libbiodynamo.xml
                    SOURCES ${LIB_SOURCES}
                    HEADERS ${HEADERS}
-                   LIBRARIES ${BDM_REQUIRED_LIBRARIES} ${ROOT_LIBRARIES} ${CMAKE_DL_LIBS})
+                   LIBRARIES ${BDM_REQUIRED_LIBRARIES} ${ROOT_LIBRARIES})
 
 # libbiodynamo must be built before optimlib; otherwise optimlib could be missing during
 # the linking stage of libbiodynamo
