@@ -12,6 +12,9 @@
 # regarding copyright ownership.
 #
 # -----------------------------------------------------------------------------
+#
+# Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+# (https://github.com/markomanka/biodynamo); see its git history.
 
 # USAGE: generate_version_files.py git_executable build_dir default_version git_dir
 #   git_executable: e.g. git
@@ -37,7 +40,7 @@ USAGE: generate_version_files.py git_executable build_dir default_version git_di
 
 def GetGitDescribeString(git_dir, default_version_code):
     try:
-        version = subprocess.check_output('{0} --git-dir={1} describe --tags --long'.format(sys.argv[1], git_dir), stderr=subprocess.DEVNULL, shell=True).decode('utf-8')
+        version = subprocess.check_output('{0} --git-dir={1} describe --tags --long --match "v[0-9]*"'.format(sys.argv[1], git_dir), stderr=subprocess.DEVNULL, shell=True).decode('utf-8')
         version = version.replace('-', '.', 1)
         version = version.replace('g', '', 1)
         return version.strip()
