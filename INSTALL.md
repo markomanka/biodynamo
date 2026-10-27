@@ -42,11 +42,12 @@ What the environment contains:
 | `python` | Python 3.11 or later; ROOT and ParaView are built against it |
 | `root` | ROOT 6.36 or later; temporary |
 | `paraview` | ParaView 6.2 or later, with Qt 6 and legacy Catalyst for in-situ visualization; optional |
+| `tbb-devel`, `eigen`, `expat`, `liblzma-devel`, `fast_float`, `exprtk` | Development files that ParaView's and VTK's CMake packages look for, which conda-forge does not install with them; only needed with ParaView |
 
 Optional additions:
 
-- **Without ParaView:** delete the `paraview` line before creating the environment, and add `-Dparaview=OFF` to
-  the `cmake` command.
+- **Without ParaView:** delete the `paraview` line and the six development packages listed under it before
+  creating the environment, and add `-Dparaview=OFF` to the `cmake` command.
 - **NUMA awareness** (Linux, multi-socket servers): `conda install -c conda-forge libnuma` before running `cmake`.
   Without it, NUMA support is switched off with a message.
 - **Memory checks** (Linux): `conda install -c conda-forge valgrind`.
