@@ -269,13 +269,11 @@ class Random {
   ~Random();
   Random& operator=(const Random& other);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// Returns a uniform deviate on the interval (0, max).
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Uniform deviate on the open interval (0, max), as with ROOT's `TRandom`:
+  /// an exact 0 is never returned.
   real_t Uniform(real_t max = 1.0);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// Returns a uniform deviate on the interval (min, max).
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Uniform deviate on the open interval (min, max), as with ROOT's
+  /// `TRandom`: an exact min is never returned.
   real_t Uniform(real_t min, real_t max);
 
   /// Returns an array of uniform random numbers in the interval (0, max)
@@ -298,45 +296,46 @@ class Random {
     return ret;
   }
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t Gaus(real_t mean = 0.0, real_t sigma = 1.0);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t Exp(real_t tau);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t Landau(real_t mean = 0, real_t sigma = 1);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t PoissonD(real_t mean);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t BreitWigner(real_t mean = 0, real_t gamma = 1);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Uniformly distributed integer in [0, max - 1]. As with ROOT's
+  /// `TRandom::Integer(UInt_t)`, `max` is read as an unsigned 32-bit value:
+  /// Integer(-1) covers [0, 2^32 - 2] (RandomizedRm's Ubrng relies on this).
   unsigned Integer(int max);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   int Binomial(int ntot, real_t prob);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   int Poisson(real_t mean);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   MathArray<real_t, 2> Circle(real_t radius);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   MathArray<real_t, 3> Sphere(real_t radius);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   void SetSeed(uint64_t seed);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   uint64_t GetSeed() const;
 
   /// Returns a random number generator that draws samples from a
@@ -424,6 +423,8 @@ class Random {
 
   /// Next uniform double in [0, 1) from the Philox4x64-10 stream.
   double NextUniform();
+  /// Next uniform double in (0, 1): NextUniform() with exact zeros skipped.
+  double NextOpenUniform();
   /// Adapter that lets ROOT's TF1/TF2/TF3 sample with this generator.
   TRandom* GetTRandomAdapter();
 

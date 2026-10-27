@@ -19,7 +19,9 @@
 #include <algorithm>
 #include <limits>
 #include <numeric>
+#include <set>
 #include <vector>
+#include "core/randomized_rm.h"
 #include "unit/test_util/io_test.h"
 #include "unit/test_util/test_util.h"
 
@@ -117,6 +119,30 @@ TEST(RandomTest, RangesAndEdgeCases) {
               abs_error<real_t>::value);
   auto s = r.Sphere(3);
   EXPECT_NEAR(3, s.Norm(), abs_error<real_t>::value * 10);
+}
+
+// Integer reads its argument as an unsigned 32-bit value, as ROOT's
+// TRandom::Integer(UInt_t) did.
+TEST(RandomTest, IntegerReadsMaxAsUnsigned) {
+  Random r;
+  r.SetSeed(5);
+  unsigned largest = 0;
+  for (int i = 0; i < 1000; ++i) {
+    largest = std::max(largest, r.Integer(-1));
+  }
+  EXPECT_GT(largest, static_cast<unsigned>(std::numeric_limits<int>::max()));
+}
+
+// RandomizedRm shuffles with Ubrng outside Linux; a constant output would
+// leave the agents in their original order.
+TEST(RandomTest, UbrngProducesVaryingOutput) {
+  Simulation simulation(TEST_NAME);
+  Ubrng generator(simulation.GetRandom());
+  std::set<Ubrng::result_type> values;
+  for (int i = 0; i < 100; ++i) {
+    values.insert(generator());
+  }
+  EXPECT_GT(values.size(), 95u);
 }
 
 TEST(RandomTest, DistributionsHaveTheExpectedMoments) {

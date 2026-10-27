@@ -82,12 +82,20 @@ TRandom* Random::GetTRandomAdapter() {
   return tf_adapter_;
 }
 
+double Random::NextOpenUniform() {
+  double u;
+  do {
+    u = NextUniform();
+  } while (u == 0);
+  return u;
+}
+
 real_t Random::Uniform(real_t max) {
-  return static_cast<real_t>(max * NextUniform());
+  return static_cast<real_t>(max * NextOpenUniform());
 }
 
 real_t Random::Uniform(real_t min, real_t max) {
-  return static_cast<real_t>(min + (max - min) * NextUniform());
+  return static_cast<real_t>(min + (max - min) * NextOpenUniform());
 }
 
 real_t Random::Gaus(real_t mean, real_t sigma) {
@@ -121,10 +129,10 @@ real_t Random::BreitWigner(real_t mean, real_t gamma) {
 }
 
 unsigned Random::Integer(int max) {
-  if (max <= 0) {
-    return 0;
-  }
-  return static_cast<unsigned>(max * NextUniform());
+  // `max` is read as unsigned, as ROOT's TRandom::Integer(UInt_t) did:
+  // RandomizedRm's Ubrng passes UINT32_MAX, which arrives here as -1.
+  const auto limit = static_cast<uint32_t>(max);
+  return static_cast<unsigned>(limit * NextUniform());
 }
 
 int Random::Binomial(int ntot, real_t prob) {
