@@ -19,7 +19,7 @@ runs made with the official BioDynaMo or with this fork before the switch. They 
 
 | Distribution | Algorithm | Uniform numbers used per sample |
 | --- | --- | --- |
-| `Uniform`, `Integer` | top 53 bits of a 64-bit output, in [0, 1) | 1 |
+| `Uniform`, `Integer` | top 53 bits of a 64-bit output, in [0, 1); `Uniform` redraws an exact 0, keeping ROOT's open interval (0, max) | 1 |
 | `Gaus` | Box–Muller | 2 |
 | `Exp`, `BreitWigner` | inversion | 1 |
 | `Landau` | Chambers–Mallows–Stuck (stable law, α = β = 1, scale π/2) | 2 or more |
@@ -61,7 +61,8 @@ def uniforms(random_seed, thread, n):
     return np.random.Generator(np.random.Philox(key=key)).random(n)
 ```
 
-Only the uniform stream maps one to one; other distributions consume uniform numbers as listed above.
+Only the uniform stream maps one to one; other distributions consume uniform numbers as listed above. BioDynaMo's `Uniform()` redraws an exact 0.0, which numpy returns with probability 2⁻⁵³ per value, so the
+two sequences could only part after such a value.
 
 ## How the generator was checked
 
