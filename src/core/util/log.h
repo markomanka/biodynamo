@@ -11,6 +11,9 @@
 // regarding copyright ownership.
 //
 // -----------------------------------------------------------------------------
+//
+// Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+// (https://github.com/markomanka/biodynamo); see its git history.
 
 #ifndef CORE_UTIL_LOG_H_
 #define CORE_UTIL_LOG_H_
