@@ -67,6 +67,25 @@ else()
 endif()
 message(STATUS "Detected OS: ${DETECTED_OS_VERS}")
 
+# Take ROOT, ParaView, Python and the other dependencies from the active
+# environment (conda-forge, Spack or system packages) instead of downloading
+# BioDynaMo's prebuilt bundles. On by default inside a conda environment that
+# contains ROOT (an active base environment alone does not switch it on).
+if(DEFINED ENV{CONDA_PREFIX} AND EXISTS "$ENV{CONDA_PREFIX}/bin/root-config")
+  set(_bdm_system_dependencies_default ON)
+else()
+  set(_bdm_system_dependencies_default OFF)
+endif()
+option(BDM_SYSTEM_DEPENDENCIES
+       "Use ROOT, ParaView and Python from the active environment; never download bundles"
+       ${_bdm_system_dependencies_default})
+if(BDM_SYSTEM_DEPENDENCIES)
+  message(STATUS "BDM_SYSTEM_DEPENDENCIES=ON: dependencies come from the environment; nothing is downloaded")
+  if(DEFINED ENV{CONDA_PREFIX})
+    list(PREPEND CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
+  endif()
+endif()
+
 if(APPLE)
   if(NOT CMAKE_OSX_SYSROOT OR CMAKE_OSX_SYSROOT STREQUAL "")
     execute_process(COMMAND xcrun --sdk macosx --show-sdk-path
@@ -82,6 +101,7 @@ if(APPLE)
   endif()
   message(STATUS "Using SDK path: ${CMAKE_OSX_SYSROOT}")
 
+  if(NOT BDM_SYSTEM_DEPENDENCIES)
   find_program(BREW_BIN brew)
   if(BREW_BIN)
     execute_process(COMMAND ${BREW_BIN} --prefix
@@ -96,6 +116,7 @@ if(APPLE)
   endif()
   # Necessary to find the OpenMP library
   set(ENV{LDFLAGS} "$ENV{LDFLAGS} -L${LIBOMP_BREW_PREFIX}/lib")
+  endif()
 endif(APPLE)
 
 # Find a suitable compiler
@@ -229,7 +250,14 @@ if (APPLE)
 endif()
 
 
-if(NOPYENV)
+if(BDM_SYSTEM_DEPENDENCIES)
+   # Any Python >= 3.9 from the environment: ROOT and ParaView were built
+   # against it there.
+   find_package(Python 3.9 REQUIRED COMPONENTS Interpreter Development)
+   set(pythonvers ${Python_VERSION})
+   set(Python3_EXECUTABLE ${Python_EXECUTABLE} CACHE FILEPATH
+       "Pin ParaView/VTK's Python3 lookup to the environment's interpreter" FORCE)
+elseif(NOPYENV)
    # On macOS
    # need to give hint which binary to find, however ideally it should be taken from the range spec 
    set(Python3_EXECUTABLE "${BREW_PREFIX}/bin/python3.9")
@@ -289,7 +317,7 @@ if(APPLE)
 endif()
 
 # Check if GLUT is present. If we do not have it, then we disable directly paraview.
-if(paraview)
+if(paraview AND NOT BDM_SYSTEM_DEPENDENCIES)
   find_package(GLUT)
   if(NOT GLUT_FOUND)
       PRINT_WARNING()
@@ -300,7 +328,7 @@ if(paraview)
   endif()
 endif()
 
-if(APPLE)
+if(APPLE AND NOT BDM_SYSTEM_DEPENDENCIES)
   # After migrating to libomp 15.0.3, libomp is no longer symlinked into 
   # $(brew --prefix)/lib/libomp.dylib. Instead, it is located in 
   # $(brew --prefix libomp)/lib . This fix should work accross all platforms.
@@ -308,7 +336,7 @@ if(APPLE)
   set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -I${LIBOMP_BREW_PREFIX}/include")
   set(OpenMP_C_INCLUDE_DIR "${LIBOMP_BREW_PREFIX}/include")
   set(OpenMP_CXX_INCLUDE_DIR "${LIBOMP_BREW_PREFIX}/include")
-endif(APPLE)
+endif()
 
 # Check if we have a compatible openmp compiler
 find_package(OpenMP)
@@ -351,10 +379,19 @@ find_package(Git)
 
 # Find ROOT and check its installation
 find_package(ROOT COMPONENTS Geom Gui GenVector)
-verify_ROOT()
+if(BDM_SYSTEM_DEPENDENCIES)
+  if(NOT ROOT_FOUND)
+    message(FATAL_ERROR "ROOT was not found in the environment. With BDM_SYSTEM_DEPENDENCIES=ON "
+            "BioDynaMo does not download it. Install it in the environment (conda-forge: "
+            "\"conda install -c conda-forge root\"; Spack: \"spack install root\"), or "
+            "configure with -DBDM_SYSTEM_DEPENDENCIES=OFF to use the prebuilt bundle.")
+  endif()
+else()
+  verify_ROOT()
+endif()
 
 # Repair MacPorts/XQuartz library paths in downloaded ROOT, including cached copies.
-if(APPLE AND ROOT_FOUND AND ROOT_INCLUDE_DIRS)
+if(APPLE AND NOT BDM_SYSTEM_DEPENDENCIES AND ROOT_FOUND AND ROOT_INCLUDE_DIRS)
   list(GET ROOT_INCLUDE_DIRS 0 BDM_ROOT_INCLUDE_DIR)
   string(REGEX REPLACE "/include$" "" BDM_ROOT_PREFIX "${BDM_ROOT_INCLUDE_DIR}")
   fix_root_install_names("${BDM_ROOT_PREFIX}")
@@ -381,7 +418,19 @@ if(numa)
   endif()
 endif()
 
-if(paraview)
+if(paraview AND BDM_SYSTEM_DEPENDENCIES)
+    find_package(ParaView CONFIG COMPONENTS Catalyst PythonCatalyst VTKExtensionsIOCore)
+    if(NOT ParaView_FOUND)
+      message(FATAL_ERROR "ParaView was not found in the environment. With BDM_SYSTEM_DEPENDENCIES=ON "
+              "BioDynaMo does not download it. Install it in the environment (conda-forge: "
+              "\"conda install -c conda-forge paraview\"; Spack: \"spack install paraview+python\"), "
+              "or configure with -Dparaview=OFF.")
+    endif()
+    set(CMAKE_BDM_PVVERSION "${ParaView_VERSION_MAJOR}.${ParaView_VERSION_MINOR}")
+    message(STATUS "Using ParaView ${ParaView_VERSION} from ${ParaView_PREFIX_PATH}")
+    include_directories(${ParaView_PREFIX_PATH}/include/paraview-${CMAKE_BDM_PVVERSION})
+    add_definitions("-DUSE_PARAVIEW")
+elseif(paraview)
     # If we specify a custom location for ParaView then we need to specify also a custom location for Qt.
     if ((DEFINED ENV{ParaView_DIR} AND NOT DEFINED ENV{Qt5_DIR}) OR (NOT DEFINED ENV{ParaView_DIR} AND DEFINED ENV{Qt5_DIR}))
         MESSAGE(FATAL_ERROR "\nFATAL ERROR \nYou need to specify both ParaView_DIR and Qt5_DIR in order to build "
@@ -873,7 +922,7 @@ set(configargs ${BDM_CONFIGARGS})
 set(cmakeinvoke "${CMAKE_INVOKE} -G ${CMAKE_GENERATOR}")
 set(omplibs ${OpenMP_CXX_LIBRARIES})
 set(with_pyenv ON)
-if (NOPYENV)
+if (NOPYENV OR BDM_SYSTEM_DEPENDENCIES)
    set(with_pyenv OFF)
 endif()
 if (DEFINED ENV{PYENV_ROOT})

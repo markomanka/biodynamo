@@ -11,6 +11,9 @@
 # regarding copyright ownership.
 #
 # -----------------------------------------------------------------------------
+#
+# Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+# (https://github.com/markomanka/biodynamo); see its git history.
 # Source this script to set up the BioDynaMo build that this script is part of.
 #
 # Conveniently an alias like this can be defined in your config.fish:
@@ -269,6 +272,12 @@ function source_thisbdm
     end
     ########
 
+    #### Dependencies from the environment (conda-forge, Spack, system) ####
+    set -l system_deps @BDM_SYSTEM_DEPENDENCIES@
+    if test "$system_deps" = 'ON'; and test -z "$ROOTSYS"; and command -v root-config >/dev/null 2>&1
+        set -gx ROOTSYS (root-config --prefix)
+    end
+
     #### ROOT Specific Configurations ####    
     if test -z "$BDM_CUSTOM_ROOT"
         if test -z "$ROOTSYS"
@@ -310,11 +319,18 @@ function source_thisbdm
         "$BDM_ROOT_DIR"/bin/root -l -e 'cout << "Loading BioDynaMo into ROOT..." << endl; gROOT->LoadMacro("'"$BDMSYS"'/etc/rootlogon.C");' $argv
     end
     funcsave __bdm_root
-    . "$BDM_ROOT_DIR/bin/thisroot.fish"
+    if test "$system_deps" != 'ON'
+        # The environment already set ROOT up; conda-forge's thisroot.fish is a stub.
+        . "$BDM_ROOT_DIR/bin/thisroot.fish"
+    end
     ########
 
     #### ParaView Specific Configurations ####
-    if test "$with_paraview" = 'ON'
+    if test "$with_paraview" = 'ON'; and test "$system_deps" = 'ON'
+        # ParaView and Qt come from the environment and are already on PATH.
+        set -gx PV_PLUGIN_PATH "$BDMSYS/lib/pv_plugin" $PV_PLUGIN_PATH
+    end
+    if test "$with_paraview" = 'ON'; and test "$system_deps" != 'ON'
         if test -z "$BDM_CUSTOM_PV"
             if test -z "$ParaView_DIR"
                 set -gx BDM_CUSTOM_PV false

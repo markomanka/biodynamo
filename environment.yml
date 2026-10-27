@@ -1,0 +1,31 @@
+# Everything needed to build and run this fork of BioDynaMo, from conda-forge.
+#
+#   conda env create -f environment.yml     (or mamba / micromamba)
+#   conda activate biodynamo
+#   cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release
+#   cmake --build build --parallel
+#
+# Inside this environment CMake sets BDM_SYSTEM_DEPENDENCIES=ON: it takes all
+# dependencies from here and downloads nothing. See INSTALL.md.
+name: biodynamo
+channels:
+  - conda-forge
+dependencies:
+  # Toolchain (GCC on Linux, Clang on macOS)
+  - c-compiler
+  - cxx-compiler
+  - cmake >=3.24
+  - ninja
+  - make
+  - git
+  - pkg-config
+  # Parallelism
+  - llvm-openmp        # OpenMP runtime for Clang on macOS; harmless on Linux
+  - openmpi
+  # Libraries
+  - libboost-devel
+  - python >=3.11
+  # Temporary: ROOT leaves BioDynaMo with the ROOT-free I/O (SKUNKWORKS.md).
+  - root >=6.36
+  # Optional: remove this line and configure with -Dparaview=OFF.
+  - paraview >=6.2
