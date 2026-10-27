@@ -15,229 +15,230 @@
 #include "core/util/random.h"
 #include <Math/DistFunc.h>
 #include <TF1.h>
-#include <TRandom3.h>
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <limits>
+#include <numeric>
+#include <set>
+#include <vector>
+#include "core/randomized_rm.h"
 #include "unit/test_util/io_test.h"
 #include "unit/test_util/test_util.h"
 
 namespace bdm {
 
-TEST(RandomTest, Uniform) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Uniform()), random->Uniform());
-  }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Uniform(i)),
-                   random->Uniform(i));
-  }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Uniform(i, i + 2)),
-                   random->Uniform(i, i + 2));
-  }
-
-  auto distrng = random->GetUniformRng(3, 4);
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Uniform(3, 4)),
-                   distrng.Sample());
+// Known-answer test: Random's stream equals numpy.random.Philox(key=[seed, 0]),
+// converted to doubles with numpy's random() (top 53 bits).
+TEST(RandomTest, MatchesNumpyPhilox) {
+  Random random;  // default seed 4357
+  const double expected[] = {0.10505628982287174, 0.34172994571577753,
+                             0.46206037266469713, 0.34848655774794601,
+                             0.41068526819046502, 0.402192415045875};
+  for (double e : expected) {
+    EXPECT_REAL_EQ(static_cast<real_t>(e), random.Uniform());
   }
 }
 
-TEST(RandomTest, UniformArray) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  auto result = random->UniformArray<5>();
-  for (uint64_t i = 0; i < 5; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Uniform()), result[i]);
-  }
-
-  auto result1 = random->UniformArray<2>(8.3);
-  for (uint64_t i = 0; i < 2; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Uniform(8.3)), result1[i]);
-  }
-
-  auto result2 = random->UniformArray<12>(5.1, 9.87);
-  for (uint64_t i = 0; i < 12; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Uniform(5.1, 9.87)),
-                   result2[i]);
-  }
-}
-
-TEST(RandomTest, Gaus) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Gaus()), random->Gaus());
-  }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Gaus(i)), random->Gaus(i));
-  }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Gaus(i, i + 2)),
-                   random->Gaus(i, i + 2));
-  }
-
-  auto distrng = random->GetGausRng(3, 4);
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Gaus(3, 4)), distrng.Sample());
+TEST(RandomTest, SameSeedSameSequence) {
+  Random a, b;
+  a.SetSeed(42);
+  b.SetSeed(42);
+  for (int i = 0; i < 50; ++i) {
+    EXPECT_EQ(a.Uniform(), b.Uniform());
+    EXPECT_EQ(a.Uniform(-3, 7), b.Uniform(-3, 7));
+    EXPECT_EQ(a.Gaus(1, 2), b.Gaus(1, 2));
+    EXPECT_EQ(a.Exp(3), b.Exp(3));
+    EXPECT_EQ(a.Landau(0, 1), b.Landau(0, 1));
+    EXPECT_EQ(a.PoissonD(12.5), b.PoissonD(12.5));
+    EXPECT_EQ(a.BreitWigner(0, 1), b.BreitWigner(0, 1));
+    EXPECT_EQ(a.Integer(100), b.Integer(100));
+    EXPECT_EQ(a.Binomial(50, 0.3), b.Binomial(50, 0.3));
+    EXPECT_EQ(a.Poisson(4.5), b.Poisson(4.5));
+    auto ca = a.Circle(2), cb = b.Circle(2);
+    EXPECT_EQ(ca[0], cb[0]);
+    EXPECT_EQ(ca[1], cb[1]);
+    auto sa = a.Sphere(3), sb = b.Sphere(3);
+    for (int k = 0; k < 3; ++k) {
+      EXPECT_EQ(sa[k], sb[k]);
+    }
   }
 }
 
-TEST(RandomTest, Exp) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Exp(i)), random->Exp(i));
+TEST(RandomTest, DifferentSeedsGiveDifferentSequences) {
+  Random a, b;
+  a.SetSeed(1);
+  b.SetSeed(2);
+  int same = 0;
+  for (int i = 0; i < 10; ++i) {
+    same += a.Uniform() == b.Uniform() ? 1 : 0;
   }
+  EXPECT_LT(same, 10);
+}
 
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Exp(i + 2)),
-                   random->Exp(i + 2));
+TEST(RandomTest, CopiesContinueTheSameSequence) {
+  Random a;
+  a.SetSeed(7);
+  for (int i = 0; i < 7; ++i) {  // stop inside a Philox block
+    a.Uniform();
   }
-
-  auto distrng = random->GetExpRng(123);
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Exp(123)), distrng.Sample());
+  Random copy(a);
+  Random assigned;
+  assigned = a;
+  for (int i = 0; i < 20; ++i) {
+    const real_t expected = a.Uniform();
+    EXPECT_EQ(expected, copy.Uniform());
+    EXPECT_EQ(expected, assigned.Uniform());
   }
 }
 
-TEST(RandomTest, Landau) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Landau()), random->Landau());
-  }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Landau(i)), random->Landau(i));
-  }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Landau(i, i + 2)),
-                   random->Landau(i, i + 2));
-  }
-
-  auto distrng = random->GetLandauRng(3, 4);
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.Landau(3, 4)),
-                   distrng.Sample());
-  }
+TEST(RandomTest, SeedZeroPicksANonZeroSeed) {
+  Random a;
+  a.SetSeed(0);
+  EXPECT_NE(0u, a.GetSeed());
+  Random b;
+  b.SetSeed(123);
+  EXPECT_EQ(123u, b.GetSeed());
 }
 
-TEST(RandomTest, PoissonD) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.PoissonD(i)),
-                   random->PoissonD(i));
+TEST(RandomTest, RangesAndEdgeCases) {
+  Random r;
+  r.SetSeed(99);
+  for (int i = 0; i < 10000; ++i) {
+    const real_t x = r.Uniform(3, 5);
+    EXPECT_GE(x, 3);
+    EXPECT_LT(x, 5);
+    EXPECT_LT(r.Integer(7), 7u);
   }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.PoissonD(i + 2)),
-                   random->PoissonD(i + 2));
-  }
-
-  auto distrng = random->GetPoissonDRng(123);
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.PoissonD(123)),
-                   distrng.Sample());
-  }
+  EXPECT_EQ(0u, r.Integer(0));
+  EXPECT_EQ(0, r.Binomial(10, 0));
+  EXPECT_EQ(10, r.Binomial(10, 1));
+  EXPECT_EQ(0, r.Poisson(0));
+  EXPECT_EQ(0, r.Landau(1, 0));
+  auto c = r.Circle(2);
+  EXPECT_NEAR(2, std::sqrt(c[0] * c[0] + c[1] * c[1]),
+              abs_error<real_t>::value);
+  auto s = r.Sphere(3);
+  EXPECT_NEAR(3, s.Norm(), abs_error<real_t>::value * 10);
 }
 
-TEST(RandomTest, BreitWigner) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.BreitWigner()),
-                   random->BreitWigner());
+// Integer reads its argument as an unsigned 32-bit value, as ROOT's
+// TRandom::Integer(UInt_t) did.
+TEST(RandomTest, IntegerReadsMaxAsUnsigned) {
+  Random r;
+  r.SetSeed(5);
+  unsigned largest = 0;
+  for (int i = 0; i < 1000; ++i) {
+    largest = std::max(largest, r.Integer(-1));
   }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.BreitWigner(i)),
-                   random->BreitWigner(i));
-  }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.BreitWigner(i, i + 2)),
-                   random->BreitWigner(i, i + 2));
-  }
-
-  auto distrng = random->GetBreitWignerRng(3, 4);
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(static_cast<real_t>(reference.BreitWigner(3, 4)),
-                   distrng.Sample());
-  }
+  EXPECT_GT(largest, static_cast<unsigned>(std::numeric_limits<int>::max()));
 }
 
-TEST(RandomTest, UserDefinedDistRng1D) {
+// RandomizedRm shuffles with Ubrng outside Linux; a constant output would
+// leave the agents in their original order.
+TEST(RandomTest, UbrngProducesVaryingOutput) {
+  Simulation simulation(TEST_NAME);
+  Ubrng generator(simulation.GetRandom());
+  std::set<Ubrng::result_type> values;
+  for (int i = 0; i < 100; ++i) {
+    values.insert(generator());
+  }
+  EXPECT_GT(values.size(), 95u);
+}
+
+TEST(RandomTest, DistributionsHaveTheExpectedMoments) {
+  Random r;
+  r.SetSeed(2024);
+  const int n = 200000;
+  auto moments = [&](auto draw, double* mean, double* var) {
+    double s = 0, s2 = 0;
+    for (int i = 0; i < n; ++i) {
+      const double x = draw();
+      s += x;
+      s2 += x * x;
+    }
+    *mean = s / n;
+    *var = s2 / n - *mean * *mean;
+  };
+  double m, v;
+  moments([&] { return r.Gaus(2, 3); }, &m, &v);
+  EXPECT_NEAR(2, m, 0.05);
+  EXPECT_NEAR(9, v, 0.3);
+  moments([&] { return r.Exp(2); }, &m, &v);
+  EXPECT_NEAR(2, m, 0.05);
+  moments([&] { return r.PoissonD(37); }, &m, &v);
+  EXPECT_NEAR(37, m, 0.1);
+  EXPECT_NEAR(37, v, 1.5);
+  moments([&] { return r.Binomial(1000, 0.3); }, &m, &v);
+  EXPECT_NEAR(300, m, 0.3);
+  EXPECT_NEAR(210, v, 8);
+  int below = 0;
+  const double median = 1 + 2 * ROOT::Math::landau_quantile(0.5);
+  for (int i = 0; i < n; ++i) {
+    below += r.Landau(1, 2) < median ? 1 : 0;
+  }
+  EXPECT_NEAR(0.5, static_cast<double>(below) / n, 0.01);
+  std::vector<double> bw(n);
+  for (auto& x : bw) {
+    x = r.BreitWigner(2, 3);
+  }
+  std::sort(bw.begin(), bw.end());
+  EXPECT_NEAR(2, bw[n / 2], 0.05);
+  EXPECT_NEAR(3, bw[3 * n / 4] - bw[n / 4], 0.1);
+}
+
+TEST(RandomTest, DistributionRngsDrawFromTheSimulationGenerator) {
+  Simulation simulation(TEST_NAME);
+  auto* random = simulation.GetRandom();
+  auto compare = [&](auto direct, auto rng) {
+    random->SetSeed(42);
+    std::vector<double> expected;
+    for (int i = 0; i < 20; ++i) {
+      expected.push_back(direct());
+    }
+    random->SetSeed(42);
+    for (int i = 0; i < 20; ++i) {
+      EXPECT_EQ(expected[i], rng.Sample());
+    }
+  };
+  compare([&] { return random->Uniform(1, 2); }, random->GetUniformRng(1, 2));
+  compare([&] { return random->Gaus(1, 2); }, random->GetGausRng(1, 2));
+  compare([&] { return random->Exp(3); }, random->GetExpRng(3));
+  compare([&] { return random->Landau(1, 2); }, random->GetLandauRng(1, 2));
+  compare([&] { return random->PoissonD(4); }, random->GetPoissonDRng(4));
+  compare([&] { return random->BreitWigner(1, 2); },
+          random->GetBreitWignerRng(1, 2));
+  compare([&] { return random->Binomial(30, 0.4); },
+          random->GetBinomialRng(30, 0.4));
+  compare([&] { return random->Poisson(6); }, random->GetPoissonRng(6));
+}
+
+// User-defined distributions used ROOT's global gRandom before; they now draw
+// from the simulation's generator, so its seed makes them reproducible.
+TEST(RandomTest, UserDefinedDistributionsUseTheSimulationGenerator) {
   Simulation simulation(TEST_NAME);
   auto* random = simulation.GetRandom();
   auto function = [](const double* x, const double* params) {
     return ROOT::Math::lognormal_pdf(*x, params[0], params[1]);
   };
-  real_t min = 1;
-  real_t max = 4;
-  TF1 reference("", function, min, max, 2);
-  reference.SetParameters(1.1, 1.2);
-
-  // workaround until update to 6.24
-  gRandom->SetSeed(42);
-  std::vector<real_t> expected;
-  for (uint64_t i = 0; i < 10; i++) {
-    expected.push_back(reference.GetRandom(min, max));
+  auto rng1 = random->GetUserDefinedDistRng1D(function, {1.1, 1.2}, 1, 4);
+  auto rng2 = random->GetUserDefinedDistRng2D(function, {1.1, 1.2}, 1, 4, 1, 4);
+  auto rng3 =
+      random->GetUserDefinedDistRng3D(function, {1.1, 1.2}, 1, 4, 1, 4, 1, 4);
+  std::vector<real_t> first, second;
+  for (auto* out : {&first, &second}) {
+    random->SetSeed(42);
+    for (int i = 0; i < 10; ++i) {
+      const real_t x = rng1.Sample();
+      EXPECT_GE(x, 1);
+      EXPECT_LE(x, 4);
+      out->push_back(x);
+      auto p2 = rng2.Sample2();
+      out->insert(out->end(), {p2[0], p2[1]});
+      auto p3 = rng3.Sample3();
+      out->insert(out->end(), {p3[0], p3[1], p3[2]});
+    }
   }
-
-  gRandom->SetSeed(42);
-  auto distrng =
-      random->GetUserDefinedDistRng1D(function, {1.1, 1.2}, min, max);
-  std::vector<real_t> actual;
-  for (uint64_t i = 0; i < 10; i++) {
-    actual.push_back(distrng.Sample());
-  }
-  for (size_t i = 0; i < actual.size(); i++) {
-    EXPECT_NEAR(expected[i], actual[i], abs_error<real_t>::value);
-  }
+  EXPECT_EQ(first, second);
 }
 
 // This test is neither a proper death test nor a proper function test. We run
@@ -330,127 +331,28 @@ TEST(RandomTest, UserDefinedDistRng3DParallel) {
   EXPECT_LT(sum, std::numeric_limits<real_t>::max());
 }
 
-TEST(RandomTest, Binomial) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_EQ(reference.Binomial(i, i + 2), random->Binomial(i, i + 2));
-  }
-
-  auto distrng = random->GetBinomialRng(3, 4);
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_EQ(reference.Binomial(3, 4), distrng.Sample());
-  }
-}
-
-TEST(RandomTest, Poisson) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_EQ(reference.Poisson(i), random->Poisson(i));
-  }
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_EQ(reference.Poisson(i + 2), random->Poisson(i + 2));
-  }
-
-  auto distrng = random->GetPoissonRng(123);
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_EQ(reference.Poisson(123), distrng.Sample());
-  }
-}
-
-TEST(RandomTest, Integer) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 1; i < 10; i++) {
-    EXPECT_EQ(reference.Integer(i), random->Integer(i));
-  }
-}
-
-TEST(RandomTest, Circle) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 1; i < 10; i++) {
-    double expected_x = 0;
-    double expected_y = 0;
-    reference.Circle(expected_x, expected_y, i);
-
-    auto actual = random->Circle(i);
-    EXPECT_REAL_EQ(expected_x, actual[0]);
-    EXPECT_REAL_EQ(expected_y, actual[1]);
-  }
-}
-
-TEST(RandomTest, Sphere) {
-  Simulation simulation(TEST_NAME);
-  auto* random = simulation.GetRandom();
-  TRandom3 reference;
-
-  random->SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 1; i < 10; i++) {
-    double expected_x = 0;
-    double expected_y = 0;
-    double expected_z = 0;
-    reference.Sphere(expected_x, expected_y, expected_z, i);
-
-    auto actual = random->Sphere(i);
-    EXPECT_REAL_EQ(expected_x, actual[0]);
-    EXPECT_REAL_EQ(expected_y, actual[1]);
-    EXPECT_REAL_EQ(expected_z, actual[2]);
-  }
-}
-
 #ifdef USE_DICT
 TEST_F(IOTest, Random) {
   Random random;
-  TRandom3 reference;
-
   random.SetSeed(42);
-  reference.SetSeed(42);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(reference.Gaus(), random.Gaus());
+  for (int i = 0; i < 5; i++) {
+    random.Gaus();
   }
-
   Random* restored;
   BackupAndRestore(random, &restored);
-
-  for (uint64_t i = 0; i < 10; i++) {
-    EXPECT_REAL_EQ(reference.Uniform(i, i + 2), random.Uniform(i, i + 2));
+  EXPECT_EQ(random.GetSeed(), restored->GetSeed());
+  for (int i = 0; i < 10; i++) {
+    EXPECT_EQ(random.Uniform(i, i + 2), restored->Uniform(i, i + 2));
   }
 }
 
 TEST_F(IOTest, UserDefinedDistRng1D) {
   Simulation simulation(TEST_NAME);
   auto* random = simulation.GetRandom();
-
   auto ud_dist = [](const double* x, const double* param) { return sin(*x); };
   auto udd_rng = random->GetUserDefinedDistRng1D(ud_dist, {}, 0, 3);
 
-  gRandom->SetSeed(42);
+  random->SetSeed(42);
   std::vector<real_t> expected;
   for (int i = 0; i < 10; ++i) {
     expected.push_back(udd_rng.Sample());
@@ -459,16 +361,11 @@ TEST_F(IOTest, UserDefinedDistRng1D) {
   UserDefinedDistRng1D* restored;
   BackupAndRestore(udd_rng, &restored);
 
-  gRandom->SetSeed(42);
-  std::vector<real_t> actual;
-  for (int i = 0; i < 10; ++i) {
-    actual.push_back(restored->Sample());
-  }
-  for (size_t i = 0; i < actual.size(); i++) {
-    EXPECT_NEAR(expected[i], actual[i], 1e-6);
+  random->SetSeed(42);
+  for (size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_NEAR(expected[i], restored->Sample(), 1e-6);
   }
 }
-
 #endif  // USE_DICT
 
 }  // namespace bdm

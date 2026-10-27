@@ -27,6 +27,8 @@ class TF3;
 
 namespace bdm {
 
+class Random;
+
 // -----------------------------------------------------------------------------
 /// Random number generator that generates samples from a distribution
 template <typename TSample>
@@ -56,9 +58,9 @@ class DistributionRng {
   }
 
  protected:
-  virtual TSample SampleImpl(TRandom* rng) = 0;
-  virtual MathArray<TSample, 2> Sample2Impl(TRandom* rng);
-  virtual MathArray<TSample, 3> Sample3Impl(TRandom* rng);
+  virtual TSample SampleImpl(Random* rng) = 0;
+  virtual MathArray<TSample, 2> Sample2Impl(Random* rng);
+  virtual MathArray<TSample, 3> Sample3Impl(Random* rng);
   BDM_CLASS_DEF(DistributionRng, 1);
 };
 
@@ -70,7 +72,7 @@ class UniformRng : public DistributionRng<real_t> {
 
  private:
   real_t min_, max_;
-  real_t SampleImpl(TRandom* rng) override;
+  real_t SampleImpl(Random* rng) override;
   BDM_CLASS_DEF_OVERRIDE(UniformRng, 1);
 };
 
@@ -82,7 +84,7 @@ class GausRng : public DistributionRng<real_t> {
 
  private:
   real_t mean_, sigma_;
-  real_t SampleImpl(TRandom* rng) override;
+  real_t SampleImpl(Random* rng) override;
   BDM_CLASS_DEF_OVERRIDE(GausRng, 1);
 };
 
@@ -94,7 +96,7 @@ class ExpRng : public DistributionRng<real_t> {
 
  private:
   real_t tau_;
-  real_t SampleImpl(TRandom* rng) override;
+  real_t SampleImpl(Random* rng) override;
   BDM_CLASS_DEF_OVERRIDE(ExpRng, 1);
 };
 
@@ -106,7 +108,7 @@ class LandauRng : public DistributionRng<real_t> {
 
  private:
   real_t mean_, sigma_;
-  real_t SampleImpl(TRandom* rng) override;
+  real_t SampleImpl(Random* rng) override;
   BDM_CLASS_DEF_OVERRIDE(LandauRng, 1);
 };
 
@@ -118,7 +120,7 @@ class PoissonDRng : public DistributionRng<real_t> {
 
  private:
   real_t mean_;
-  real_t SampleImpl(TRandom* rng) override;
+  real_t SampleImpl(Random* rng) override;
   BDM_CLASS_DEF_OVERRIDE(PoissonDRng, 1);
 };
 
@@ -130,7 +132,7 @@ class BreitWignerRng : public DistributionRng<real_t> {
 
  private:
   real_t mean_, gamma_;
-  real_t SampleImpl(TRandom* rng) override;
+  real_t SampleImpl(Random* rng) override;
   BDM_CLASS_DEF_OVERRIDE(BreitWignerRng, 1);
 };
 
@@ -144,7 +146,7 @@ class UserDefinedDistRng1D : public DistributionRng<real_t> {
   TF1* GetTF1();
 
  private:
-  real_t SampleImpl(TRandom* rng) override;
+  real_t SampleImpl(Random* rng) override;
   // TODO use shared_ptr once ROOT supports IO of them
   TF1* function_ = nullptr;
   const char* option_ = nullptr;
@@ -161,8 +163,8 @@ class UserDefinedDistRng2D : public DistributionRng<real_t> {
   TF2* GetTF2();
 
  private:
-  real_t SampleImpl(TRandom* rng) override;
-  MathArray<real_t, 2> Sample2Impl(TRandom* rng) override;
+  real_t SampleImpl(Random* rng) override;
+  MathArray<real_t, 2> Sample2Impl(Random* rng) override;
   // TODO use shared_ptr once ROOT supports IO of them
   TF2* function_ = nullptr;
   const char* option_ = nullptr;
@@ -179,9 +181,9 @@ class UserDefinedDistRng3D : public DistributionRng<real_t> {
   TF3* GetTF3();
 
  private:
-  real_t SampleImpl(TRandom* rng) override;
-  MathArray<real_t, 2> Sample2Impl(TRandom* rng) override;
-  MathArray<real_t, 3> Sample3Impl(TRandom* rng) override;
+  real_t SampleImpl(Random* rng) override;
+  MathArray<real_t, 2> Sample2Impl(Random* rng) override;
+  MathArray<real_t, 3> Sample3Impl(Random* rng) override;
   // TODO use shared_ptr once ROOT supports IO of them
   TF3* function_ = nullptr;
   const char* option_ = nullptr;
@@ -239,7 +241,7 @@ class BinomialRng : public DistributionRng<int> {
  private:
   int ntot_;
   real_t prob_;
-  int SampleImpl(TRandom* rng) override;
+  int SampleImpl(Random* rng) override;
   BDM_CLASS_DEF_OVERRIDE(BinomialRng, 1);
 };
 
@@ -251,7 +253,7 @@ class PoissonRng : public DistributionRng<int> {
 
  private:
   real_t mean_;
-  int SampleImpl(TRandom* rng) override;
+  int SampleImpl(Random* rng) override;
   BDM_CLASS_DEF_OVERRIDE(PoissonRng, 1);
 };
 
@@ -267,13 +269,11 @@ class Random {
   ~Random();
   Random& operator=(const Random& other);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// Returns a uniform deviate on the interval (0, max).
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Uniform deviate on the open interval (0, max), as with ROOT's `TRandom`:
+  /// an exact 0 is never returned.
   real_t Uniform(real_t max = 1.0);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// Returns a uniform deviate on the interval (min, max).
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Uniform deviate on the open interval (min, max), as with ROOT's
+  /// `TRandom`: an exact min is never returned.
   real_t Uniform(real_t min, real_t max);
 
   /// Returns an array of uniform random numbers in the interval (0, max)
@@ -296,51 +296,47 @@ class Random {
     return ret;
   }
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t Gaus(real_t mean = 0.0, real_t sigma = 1.0);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t Exp(real_t tau);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t Landau(real_t mean = 0, real_t sigma = 1);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t PoissonD(real_t mean);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   real_t BreitWigner(real_t mean = 0, real_t gamma = 1);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Uniformly distributed integer in [0, max - 1]. As with ROOT's
+  /// `TRandom::Integer(UInt_t)`, `max` is read as an unsigned 32-bit value:
+  /// Integer(-1) covers [0, 2^32 - 2] (RandomizedRm's Ubrng relies on this).
   unsigned Integer(int max);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   int Binomial(int ntot, real_t prob);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   int Poisson(real_t mean);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   MathArray<real_t, 2> Circle(real_t radius);
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   MathArray<real_t, 3> Sphere(real_t radius);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   void SetSeed(uint64_t seed);
 
-  /// Forwards call to ROOT's `TRandom`.\n
-  /// \see https://root.cern/doc/master/classTRandom.html
+  /// Same distribution and parameters as ROOT's `TRandom`, sampled with the
+  /// algorithms in core/util/random_algorithms.h.
   uint64_t GetSeed() const;
-
-  /// Updates the internal random number generator
-  /// \see https://root.cern/doc/master/classTRandom.html
-  /// for a list of available choices
-  void SetGenerator(TRandom* new_rng);
 
   /// Returns a random number generator that draws samples from a
   /// uniform distribution with given parameters.
@@ -421,8 +417,24 @@ class Random {
  private:
   friend class DistributionRng<real_t>;
   friend class DistributionRng<int>;
+  friend class UserDefinedDistRng1D;
+  friend class UserDefinedDistRng2D;
+  friend class UserDefinedDistRng3D;
 
-  TRandom* generator_ = nullptr;
+  /// Next uniform double in [0, 1) from the Philox4x64-10 stream.
+  double NextUniform();
+  /// Next uniform double in (0, 1): NextUniform() with exact zeros skipped.
+  double NextOpenUniform();
+  /// Adapter that lets ROOT's TF1/TF2/TF3 sample with this generator.
+  TRandom* GetTRandomAdapter();
+
+  // Philox4x64-10 state (core/util/random_algorithms.h); saved in backups.
+  uint64_t seed_ = 4357;
+  uint64_t key_[2] = {4357, 0};
+  uint64_t counter_[4] = {0, 0, 0, 0};
+  uint64_t buffer_[4] = {0, 0, 0, 0};
+  int buffer_position_ = 4;
+  TRandom* tf_adapter_ = nullptr;  //!
   /// Stores TF1 pointers that have been created for a specific user-defined
   /// 1D distribution
   std::unordered_map<UserDefinedDist, TF1*> udd_tf1_map_;  //!
@@ -432,7 +444,7 @@ class Random {
   /// Stores TF3 pointers that have been created for a specific user-defined
   /// 3D distribution
   std::unordered_map<UserDefinedDist, TF3*> udd_tf3_map_;  //!
-  BDM_CLASS_DEF_NV(Random, 3);
+  BDM_CLASS_DEF_NV(Random, 4);
 };
 
 }  // namespace bdm
