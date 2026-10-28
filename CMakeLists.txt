@@ -428,6 +428,14 @@ if(paraview AND BDM_SYSTEM_DEPENDENCIES)
     endif()
     set(CMAKE_BDM_PVVERSION "${ParaView_VERSION_MAJOR}.${ParaView_VERSION_MINOR}")
     message(STATUS "Using ParaView ${ParaView_VERSION} from ${ParaView_PREFIX_PATH}")
+    # Link only what BioDynaMo uses. ParaView_LIBRARIES lists every ParaView
+    # module, including wrappers of optional libraries (such as Protobuf) that
+    # ParaView looks for only when a requested component needs them; linking
+    # them all fails when generating the build files.
+    set(ParaView_LIBRARIES
+        ParaView::Catalyst ParaView::PythonCatalyst ParaView::VTKExtensionsIOCore
+        VTK::CommonCore VTK::CommonDataModel VTK::CommonExecutionModel VTK::IOCore
+        VTK::IOXML VTK::IOParallelXML VTK::ImagingCore VTK::ParallelCore)
     include_directories(${ParaView_PREFIX_PATH}/include/paraview-${CMAKE_BDM_PVVERSION})
     add_definitions("-DUSE_PARAVIEW")
 elseif(paraview)
