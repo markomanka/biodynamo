@@ -4,5 +4,6 @@ LIBRARY_NAME
   BDM
 DEPENDS
   VTK::FiltersCore
+  ParaView::VTKExtensionsFiltersGeneral
 PRIVATE_DEPENDS
   VTK::CommonCore
