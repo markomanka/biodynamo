@@ -84,6 +84,13 @@ if(BDM_SYSTEM_DEPENDENCIES)
   if(DEFINED ENV{CONDA_PREFIX})
     list(PREPEND CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
   endif()
+  if(APPLE)
+    # conda-forge's libc++ headers mark recent C++ features with availability
+    # attributes that ROOT's dictionary generator cannot parse. The environment
+    # ships a libc++ that provides those features, so the markup can go (see
+    # conda-forge's knowledge base, "newer C++ features with old SDK").
+    add_definitions(-D_LIBCPP_DISABLE_AVAILABILITY)
+  endif()
 endif()
 
 if(APPLE)
@@ -446,6 +453,13 @@ if(paraview AND BDM_SYSTEM_DEPENDENCIES)
         VTK::CommonCore VTK::CommonDataModel VTK::CommonExecutionModel VTK::IOCore
         VTK::IOXML VTK::IOParallelXML VTK::ImagingCore VTK::ParallelCore)
     include_directories(${ParaView_PREFIX_PATH}/include/paraview-${CMAKE_BDM_PVVERSION})
+    # ROOT's dictionary generator sees only directories added here. The
+    # prebuilt bundle kept VTK's headers inside ParaView's folder; conda-forge
+    # and Spack install VTK separately.
+    get_target_property(_bdm_vtk_includes VTK::CommonCore INTERFACE_INCLUDE_DIRECTORIES)
+    if(_bdm_vtk_includes)
+      include_directories(${_bdm_vtk_includes})
+    endif()
     add_definitions("-DUSE_PARAVIEW")
 elseif(paraview)
     # If we specify a custom location for ParaView then we need to specify also a custom location for Qt.

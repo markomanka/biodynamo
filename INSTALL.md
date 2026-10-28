@@ -43,10 +43,11 @@ What the environment contains:
 | `root` | ROOT 6.36 or later; temporary |
 | `paraview` | ParaView 6.2 or later, with Qt 6 and legacy Catalyst for in-situ visualization; optional |
 | `tbb-devel`, `eigen`, `expat`, `liblzma-devel`, `fast_float`, `exprtk` | Development files that ParaView's and VTK's CMake packages look for, which conda-forge does not install with them; only needed with ParaView |
+| `libxslt` | `xsltproc`, which ParaView uses to document BioDynaMo's ParaView plugin; only needed with ParaView |
 
 Optional additions:
 
-- **Without ParaView:** delete the `paraview` line and the six development packages listed under it before
+- **Without ParaView:** delete the `paraview` line and the packages listed under it before
   creating the environment, and add `-Dparaview=OFF` to the `cmake` command.
 - **NUMA awareness** (Linux, multi-socket servers): `conda install -c conda-forge libnuma` before running `cmake`.
   Without it, NUMA support is switched off with a message.

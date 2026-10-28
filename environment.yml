@@ -37,3 +37,4 @@ dependencies:
   - liblzma-devel
   - fast_float
   - exprtk
+  - libxslt            # xsltproc, which ParaView uses to document plugins
