@@ -672,6 +672,20 @@ elseif(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 include(SetCompilerFlags)
+# With ROOT from the environment, build with the C++ standard ROOT was built with:
+# ROOT supports only that, and its interpreter parses BioDynaMo's classes with
+# it (conda-forge's ROOT uses C++20; the prebuilt bundles use C++17).
+if(BDM_SYSTEM_DEPENDENCIES AND ROOT_CONFIG_EXECUTABLE)
+  execute_process(COMMAND ${ROOT_CONFIG_EXECUTABLE} --cflags
+                  OUTPUT_VARIABLE _bdm_root_cflags OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(_bdm_root_cflags MATCHES "-std=(c|gnu)\\+\\+([0-9]+)")
+    set(_bdm_root_cxx_standard ${CMAKE_MATCH_2})
+    if(_bdm_root_cxx_standard GREATER CMAKE_CXX_STANDARD)
+      message(STATUS "Using C++${_bdm_root_cxx_standard}, the standard ROOT was built with")
+      set(CMAKE_CXX_STANDARD ${_bdm_root_cxx_standard})
+    endif()
+  endif()
+endif()
 
 # -------------------- set rpath options ---------------------------------------
 #  When building, don't use the install RPATH already (but later on when installing)
