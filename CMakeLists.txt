@@ -453,19 +453,34 @@ if(paraview AND BDM_SYSTEM_DEPENDENCIES)
         VTK::CommonCore VTK::CommonDataModel VTK::CommonExecutionModel VTK::IOCore
         VTK::IOXML VTK::IOParallelXML VTK::ImagingCore VTK::ParallelCore)
     include_directories(${ParaView_PREFIX_PATH}/include/paraview-${CMAKE_BDM_PVVERSION})
-    # ROOT's dictionary generator sees only directories added here. The
-    # prebuilt bundle kept VTK's headers inside ParaView's folder; conda-forge
-    # and Spack install VTK separately.
-    get_target_property(_bdm_vtk_includes VTK::CommonCore INTERFACE_INCLUDE_DIRECTORIES)
-    if(_bdm_vtk_includes)
-      include_directories(${_bdm_vtk_includes})
+    # ROOT's dictionary generator sees only directories added with
+    # include_directories(). The prebuilt bundle kept VTK's headers inside
+    # ParaView's folder.
+    # VTK's header folder. conda-forge and Spack install VTK apart from
+    # ParaView, and VTK records the folder on its own support libraries (such
+    # as VTK::vtksys), not on modules like VTK::CommonCore.
+    set(_bdm_vtk_includes)
+    foreach(_bdm_target VTK::vtksys VTK::CommonCore)
+      if(TARGET ${_bdm_target})
+        get_target_property(_bdm_dirs ${_bdm_target} INTERFACE_INCLUDE_DIRECTORIES)
+        if(_bdm_dirs)
+          list(APPEND _bdm_vtk_includes ${_bdm_dirs})
+        endif()
+      endif()
+    endforeach()
+    list(REMOVE_DUPLICATES _bdm_vtk_includes)
+    find_path(BDM_VTK_INCLUDE_DIR vtkObject.h PATHS ${_bdm_vtk_includes} NO_DEFAULT_PATH)
+    if(NOT BDM_VTK_INCLUDE_DIR)
+      message(FATAL_ERROR "VTK's headers (vtkObject.h) were not found in the folders VTK's CMake "
+              "package declares (${_bdm_vtk_includes}). ROOT's dictionaries and interpreter need them.")
     endif()
+    message(STATUS "VTK headers: ${BDM_VTK_INCLUDE_DIR}")
+    include_directories(${BDM_VTK_INCLUDE_DIR})
     # ROOT's interpreter compiles the agent export at run time and needs the
     # same headers; thisbdm.sh exports them as ROOT_INCLUDE_PATH.
-    set(BDM_RUNTIME_INCLUDE_PATH "${ParaView_PREFIX_PATH}/include/paraview-${CMAKE_BDM_PVVERSION}")
-    foreach(_bdm_dir IN LISTS _bdm_vtk_includes)
-      string(APPEND BDM_RUNTIME_INCLUDE_PATH ":${_bdm_dir}")
-    endforeach()
+    set(BDM_RUNTIME_INCLUDE_PATH
+        "${ParaView_PREFIX_PATH}/include/paraview-${CMAKE_BDM_PVVERSION}:${BDM_VTK_INCLUDE_DIR}")
+    message(STATUS "Headers for ROOT's interpreter: ${BDM_RUNTIME_INCLUDE_PATH}")
     add_definitions("-DUSE_PARAVIEW")
 elseif(paraview)
     # If we specify a custom location for ParaView then we need to specify also a custom location for Qt.
