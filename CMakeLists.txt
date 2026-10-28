@@ -419,6 +419,15 @@ if(numa)
 endif()
 
 if(paraview AND BDM_SYSTEM_DEPENDENCIES)
+    # ParaView::PythonCatalyst depends, through RemotingServerManager, on
+    # ParaView's Protobuf wrapper, whose link interface names
+    # protobuf::libprotobuf. ParaView searches for Protobuf only when the
+    # wrapper itself is requested, so load Protobuf's own CMake package first
+    # (conda-forge: libprotobuf, installed with ParaView).
+    find_package(protobuf CONFIG QUIET)
+    if(TARGET protobuf::libprotobuf)
+      message(STATUS "Found Protobuf ${protobuf_VERSION}, needed by ParaView's CMake package")
+    endif()
     find_package(ParaView CONFIG COMPONENTS Catalyst PythonCatalyst VTKExtensionsIOCore)
     if(NOT ParaView_FOUND)
       message(FATAL_ERROR "ParaView was not found in the environment. With BDM_SYSTEM_DEPENDENCIES=ON "
