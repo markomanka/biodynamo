@@ -460,6 +460,12 @@ if(paraview AND BDM_SYSTEM_DEPENDENCIES)
     if(_bdm_vtk_includes)
       include_directories(${_bdm_vtk_includes})
     endif()
+    # ROOT's interpreter compiles the agent export at run time and needs the
+    # same headers; thisbdm.sh exports them as ROOT_INCLUDE_PATH.
+    set(BDM_RUNTIME_INCLUDE_PATH "${ParaView_PREFIX_PATH}/include/paraview-${CMAKE_BDM_PVVERSION}")
+    foreach(_bdm_dir IN LISTS _bdm_vtk_includes)
+      string(APPEND BDM_RUNTIME_INCLUDE_PATH ":${_bdm_dir}")
+    endforeach()
     add_definitions("-DUSE_PARAVIEW")
 elseif(paraview)
     # If we specify a custom location for ParaView then we need to specify also a custom location for Qt.

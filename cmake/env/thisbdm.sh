@@ -450,6 +450,13 @@ _source_thisbdm()
       PV_PLUGIN_PATH="${BDMSYS}/lib/pv_plugin":$PV_PLUGIN_PATH
     fi
     export PV_PLUGIN_PATH
+    # ROOT's interpreter compiles the agent export at run time and needs
+    # ParaView's and VTK's headers.
+    local runtime_include_path="@BDM_RUNTIME_INCLUDE_PATH@"
+    if [ -n "$runtime_include_path" ]; then
+      ROOT_INCLUDE_PATH="${runtime_include_path}${ROOT_INCLUDE_PATH:+:$ROOT_INCLUDE_PATH}"
+      export ROOT_INCLUDE_PATH
+    fi
   fi
   if [ "$with_paraview" = 'ON' ] && [ "$system_deps" != 'ON' ]; then
      if [ -z "$BDM_CUSTOM_PV" ]; then

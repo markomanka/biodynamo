@@ -329,6 +329,12 @@ function source_thisbdm
     if test "$with_paraview" = 'ON'; and test "$system_deps" = 'ON'
         # ParaView and Qt come from the environment and are already on PATH.
         set -gx PV_PLUGIN_PATH "$BDMSYS/lib/pv_plugin" $PV_PLUGIN_PATH
+        # ROOT's interpreter compiles the agent export at run time and needs
+        # ParaView's and VTK's headers.
+        set -l runtime_include_path "@BDM_RUNTIME_INCLUDE_PATH@"
+        if test -n "$runtime_include_path"
+            set -gx ROOT_INCLUDE_PATH (string split : -- $runtime_include_path) $ROOT_INCLUDE_PATH
+        end
     end
     if test "$with_paraview" = 'ON'; and test "$system_deps" != 'ON'
         if test -z "$BDM_CUSTOM_PV"
