@@ -57,10 +57,11 @@ To update the environment after `environment.yml` changes: `conda env update -f 
 
 ## Known issues
 
-- **macOS, ParaView from conda-forge (October 2026):** conda-forge's ParaView 6.2.0 for Apple Silicon links
-  VTK's bundled CGNS library (`libvtkcgns`), which conda-forge's VTK 9.7.0 package does not ship. Programs that
-  load ParaView, BioDynaMo's tests included, stop at start-up with "Library not loaded: libvtkcgns". Until
-  conda-forge fixes the package, configure with `-Dparaview=OFF` on macOS. Linux is not affected.
+- **macOS, ParaView from conda-forge (resolved, October 2026):** build 1 of conda-forge's ParaView 6.2.0 for
+  Apple Silicon linked a library that no package ships (`libvtkcgns`), so programs loading ParaView stopped at
+  start-up with "Library not loaded: libvtkcgns". Build 2 fixes it
+  ([conda-forge/paraview-feedstock#342](https://github.com/conda-forge/paraview-feedstock/issues/342)). An
+  environment created before needs updating: `conda env update -f environment.yml --prune`.
 
 ## Spack
 

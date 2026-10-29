@@ -18,14 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-24.04
-            paraview: 'ON'
-          # conda-forge's ParaView 6.2.0 for Apple Silicon links libvtkcgns, which
-          # its VTK package does not ship, so programs loading ParaView cannot
-          # start (INSTALL.md, "Known issues").
-          - os: macos-15
-            paraview: 'OFF'
+        os: [ubuntu-24.04, macos-15]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -48,7 +41,7 @@ jobs:
       run: |
         cmake -G Ninja -B build \
           -DCMAKE_BUILD_TYPE=Release \
-          -Dparaview=${{ matrix.paraview }} \
+          -Dparaview=ON \
           -Dbenchmark=ON
         grep -q '^BDM_SYSTEM_DEPENDENCIES:BOOL=ON' build/CMakeCache.txt
         for d in root paraview qt; do
