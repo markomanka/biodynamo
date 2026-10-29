@@ -37,6 +37,17 @@ jobs:
         cache-environment: true
         post-cleanup: 'all'
 
+    # Diagnostic, to be removed: does ROOT's interpreter itself handle these
+    # headers in this environment, without BioDynaMo?
+    - name: Interpreter checks (diagnostic)
+      continue-on-error: true
+      run: |
+        for h in '<stdint.h>' '<omp.h>'; do
+          echo "--- root: #include $h"
+          root -l -b -q -e "#include $h" 2>&1 | tail -25
+          echo "exit: ${PIPESTATUS[0]}"
+        done
+
     - name: Build BioDynaMo
       run: |
         cmake -G Ninja -B build \
@@ -51,6 +62,21 @@ jobs:
           fi
         done
         cmake --build build --parallel
+
+    # Diagnostic, to be removed: do the checkpoint tests crash when they run
+    # alone, without the tests that run before them in the full suite?
+    - name: Checkpoint tests alone (diagnostic)
+      if: runner.os == 'Linux'
+      continue-on-error: true
+      working-directory: build
+      run: |
+        . bin/thisbdm.sh
+        bdm config
+        ninja biodynamo-unit-tests
+        set +e
+        bin/biodynamo-unit-tests --gtest_filter='IOTest.*' > iotest-alone.log 2>&1
+        echo "IOTest alone: exit $?"
+        grep -E '^\[ *(RUN|OK|FAILED|PASSED) *\]|\*\*\* Break' iotest-alone.log | tail -30
 
     - name: Unit tests BioDynaMo
       working-directory: build
