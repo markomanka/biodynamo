@@ -766,10 +766,17 @@ if(paraview)
   # resolve missing python symbols when creating binaries
   if(APPLE AND NOT BDM_SYSTEM_DEPENDENCIES)
     set(REQUIRED_PARAVIEW_LIBRARIES "${ParaView_LIBRARIES};${Python3_LIBRARIES}")
+  elseif(APPLE)
+    # With dependencies from the environment, find_package(Python ... Development)
+    # provides the interpreter library; Python3_LIBRARIES, from VTK's own search,
+    # is empty on macOS. conda-forge links with -dead_strip_dylibs, which drops
+    # libraries whose symbols BioDynaMo does not call, while ParaView's Python
+    # libraries take Python's symbols from the process at load time:
+    # -needed_library keeps libpython, as --no-as-needed does on Linux below.
+    set(REQUIRED_PARAVIEW_LIBRARIES "${ParaView_LIBRARIES};-Wl,-needed_library,${Python_LIBRARIES}")
   else()
     # With dependencies from the environment, find_package(Python ... Development)
-    # provides the interpreter library on every platform; Python3_LIBRARIES is set
-    # by VTK's own search and is empty on macOS.
+    # provides the interpreter library.
     set(REQUIRED_PARAVIEW_LIBRARIES "${ParaView_LIBRARIES};${Python_LIBRARIES}")
   endif()
   build_shared_library(VisualizationAdaptor
