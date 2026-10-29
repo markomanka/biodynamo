@@ -1,0 +1,79 @@
+# Checks that conda-forge's ParaView programs run on macOS in a clean environment
+# with nothing but ParaView in it (conda-forge/paraview-feedstock#342).
+# Runs on pushes to its own branch; not part of BioDynaMo's CI.
+name: ParaView check (conda-forge, macOS)
+
+on:
+  push:
+    branches: [diag/paraview-check]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+    - name: Create a clean environment with ParaView only
+      uses: mamba-org/setup-micromamba@v3
+      with:
+        environment-name: pvtest
+        create-args: paraview=6.2.0
+        init-shell: bash
+        cache-environment: false
+
+    - name: Versions
+      run: |
+        sw_vers
+        micromamba list | grep -E '^ *(paraview|vtk-base|cgns|qt6-main|python) '
+
+    - name: paraview, pvpython and pvbatch start
+      run: |
+        set -x
+        paraview --version
+        pvpython --version
+        pvbatch --version
+
+    - name: pvbatch renders a sphere
+      run: |
+        cat > render.py <<'PY'
+        from paraview.simple import *
+        sphere = Sphere(ThetaResolution=32, PhiResolution=32)
+        view = GetActiveViewOrCreate('RenderView')
+        view.ViewSize = [400, 300]
+        Show(sphere, view)
+        Render(view)
+        SaveScreenshot('sphere.png', view)
+        print('rendered')
+        PY
+        pvbatch render.py
+        ls -l sphere.png
+
+    - name: Keep the rendered image
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: sphere
+        path: sphere.png
+        if-no-files-found: warn
+
+    - name: The paraview GUI starts and keeps running
+      run: |
+        paraview > gui.log 2>&1 &
+        pid=$!
+        sleep 30
+        if kill -0 "$pid" 2>/dev/null; then
+          echo "paraview GUI still running after 30 s"
+          kill "$pid"; wait "$pid" 2>/dev/null || true
+          status=0
+        else
+          wait "$pid"; status=$?
+          echo "::error::paraview GUI exited within 30 s (status $status)"
+        fi
+        echo "--- GUI messages"; tail -40 gui.log
+        exit $status
