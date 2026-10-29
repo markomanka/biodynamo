@@ -764,9 +764,12 @@ if(paraview)
 
   # We link against python3 libraries, so that the paraview libraries can
   # resolve missing python symbols when creating binaries
-  if(APPLE)
+  if(APPLE AND NOT BDM_SYSTEM_DEPENDENCIES)
     set(REQUIRED_PARAVIEW_LIBRARIES "${ParaView_LIBRARIES};${Python3_LIBRARIES}")
   else()
+    # With dependencies from the environment, find_package(Python ... Development)
+    # provides the interpreter library on every platform; Python3_LIBRARIES is set
+    # by VTK's own search and is empty on macOS.
     set(REQUIRED_PARAVIEW_LIBRARIES "${ParaView_LIBRARIES};${Python_LIBRARIES}")
   endif()
   build_shared_library(VisualizationAdaptor
