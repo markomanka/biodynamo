@@ -63,9 +63,9 @@ jobs:
         done
         cmake --build build --parallel
 
-    # Diagnostic, to be removed: do the checkpoint tests crash when they run
-    # alone, without the tests that run before them in the full suite?
-    - name: Checkpoint tests alone (diagnostic)
+    # Diagnostic, to be removed: the whole Linux suite, excluding each test that
+    # crashes the program and running again, so one run lists every failure.
+    - name: Linux suite without the crashing tests (diagnostic)
       if: runner.os == 'Linux'
       continue-on-error: true
       working-directory: build
@@ -74,9 +74,22 @@ jobs:
         bdm config
         ninja biodynamo-unit-tests
         set +e
-        bin/biodynamo-unit-tests --gtest_filter='IOTest.*' > iotest-alone.log 2>&1
-        echo "IOTest alone: exit $?"
-        grep -E '^\[ *(RUN|OK|FAILED|PASSED) *\]|\*\*\* Break' iotest-alone.log | tail -30
+        exclude="IOTest.AgentUidGenerator"
+        for pass in 1 2 3 4 5 6 7 8; do
+          timeout 1800 bin/biodynamo-unit-tests --gtest_filter="-$exclude" > "suite-$pass.log" 2>&1
+          echo "=== pass $pass: exit $?, excluding $exclude"
+          grep -E '^\[==========\] [0-9]+ tests? from [0-9]+ test suites? ran|^\[  PASSED  \] [0-9]+|FAILED TESTS?$' "suite-$pass.log"
+          grep -oE '^\[  FAILED  \] [A-Za-z0-9_]+\.[A-Za-z0-9_/]+' "suite-$pass.log" | sort -u
+          if grep -qE '^\[==========\] [0-9]+ tests? from [0-9]+ test suites? ran' "suite-$pass.log"; then
+            echo "=== the suite ran to the end"
+            break
+          fi
+          crashed=$(grep -E '^\[ RUN      \]' "suite-$pass.log" | tail -1 | awk '{print $NF}')
+          [ -n "$crashed" ] || { echo "=== crashed outside a test; stopping"; tail -20 "suite-$pass.log"; break; }
+          echo "=== crashed in: $crashed"
+          grep -A60 -m1 -E '^ *\*\*\* Break' "suite-$pass.log" | grep ' in ' | grep -v libCling | cut -c1-220 | head -10
+          exclude="$exclude:$crashed"
+        done
 
     - name: Unit tests BioDynaMo
       working-directory: build
