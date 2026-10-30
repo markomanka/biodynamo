@@ -9,8 +9,9 @@ affiliated with or endorsed by the BioDynaMo team.
 1. **BioDynaMo without ROOT.** No feature may depend on ROOT: not checkpoints, parameters, the exchange of
    agents between processes or reflection, and not notebooks, statistics, plotting or visualization either.
 2. **A shared I/O library.** Checkpoints, agent exchange and visualization files move into
-   [abm-io](https://github.com/markomanka/abm-io) (private for now), a library that other agent-based suites can
-   adopt as well, starting with PhysiCell.
+   [abm-io](https://github.com/markomanka/abm-io) (DOI
+   [10.5281/zenodo.23731697](https://doi.org/10.5281/zenodo.23731697)), a library that other agent-based suites
+   can adopt as well, starting with PhysiCell.
 3. **Easy installation and maintenance.** Every dependency comes from a community-maintained ecosystem:
    conda-forge by default, Spack on HPC clusters. Nothing is downloaded at build time.
 4. **Performance and scalability are kept.** Every step is benchmarked, and the I/O work aims to make
@@ -23,13 +24,35 @@ open in-situ interfaces, so that ParaView can be replaced if a competitive inter
 
 | Step | Content | Result | Status |
 | --- | --- | --- | --- |
-| 1 · Community dependencies | `BDM_SYSTEM_DEPENDENCIES` option; `environment.yml`; ParaView adaptor ported to ParaView 6.2 and VTK 9.7; Conda CI on Linux and macOS; [INSTALL.md](INSTALL.md) | No Python 3.9, Qt 5 or CERN downloads. ROOT stays only as a bridge until step 3 | In review |
+| 1 · Community dependencies | `BDM_SYSTEM_DEPENDENCIES` option; `environment.yml`; ParaView adaptor ported to ParaView 6.2 and VTK 9.7; Conda CI on Linux and macOS; [INSTALL.md](INSTALL.md) | No Python 3.9, Qt 5 or CERN downloads. ROOT stays only as a bridge until step 3 | Done (pull request #8) |
 | 2 · ROOT-free features | Plotting and statistics (`TimeSeries`, `LineGraph`) export their data, with plots from Vega-Lite specifications in notebooks or matplotlib; notebooks on the `xeus-cpp` kernel; user-defined distributions without `TF1`/`TF2`/`TF3`; the ROOT geometry viewer removed; the remaining `TMath`, `TEnv` and `TSystem`; demos | No user-facing feature needs ROOT | Planned |
 | 3 · I/O and reflection | `abm-gen` (a Clang LibTooling generator, replacing `rootcling`) and `abm-io`: HDF5 checkpoints, JSON parameters, MPI exchange, a type registry, and field tables replacing Cling's run-time code generation; then plugin loading through `dlopen`; then `rootcling` and ROOT leave the build; `abm-io` is released and gets a PhysiCell adapter | ROOT gone completely | Planned |
 | 4 · Visualization independence | `abm-io` writes VTKHDF (HDF5-based VTK files, read by ParaView and PyVista) from the field tables, without linking VTK; Catalyst 2 for in-situ use; evaluation of alternatives to ParaView | ParaView optional and replaceable | Planned |
 
 Physics fixes for agents accumulating at borders run in parallel (see below). `abm-io`'s
 `docs/ROADMAP.md` maps these steps onto its milestones, gates and issues.
+
+### Step 1 in practice
+
+- **Result:** BioDynaMo builds and passes all its tests with every dependency from conda-forge: 456 tests on
+  Ubuntu 24.04 and 450 on macOS 15 (Conda CI). It is built as C++20, the standard of conda-forge's ROOT.
+- **Problems the move uncovered, fixed in BioDynaMo:** ROOT's interpreter, which in conda-forge's ROOT uses
+  runtime C++ modules, needs BioDynaMo's headers on `ROOT_INCLUDE_PATH`; `pvbatch` is taken from the `PATH` when
+  `ParaView_DIR` is not set; the Linux ParaView tests render through Xvfb, as in upstream's CI; on macOS,
+  Python's library is kept despite conda-forge's `-dead_strip_dylibs`; `environment.yml` takes the CPU build of
+  Viskores, whose CUDA builds would require NVIDIA's compiler.
+- **Reported to conda-forge:** ParaView 6.2.0 for macOS linked a library that no package ships
+  ([paraview-feedstock#342](https://github.com/conda-forge/paraview-feedstock/issues/342), fixed in build 2);
+  ROOT 6.40.04 cannot include `<stdint.h>` with a macOS 15 or newer SDK
+  ([root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396), open: CI and
+  [INSTALL.md](INSTALL.md) use a macOS 14 SDK meanwhile); ParaView 6.2.0 uses Abseil 20260526 without pinning it
+  ([paraview-feedstock#345](https://github.com/conda-forge/paraview-feedstock/issues/345), open:
+  `environment.yml` pins `libabseil=20260526` meanwhile).
+- **BioDynaMo's own macOS CI is retired:** its bundles depend on Homebrew's `python@3.9`, which Homebrew disabled
+  on 15 October 2026. The Conda CI covers macOS (pull request #10).
+- **GPUs:** the Viskores choice affects only ParaView's accelerated filters; BioDynaMo's own CUDA and OpenCL
+  options are untouched. Next come a CUDA variant of the environment and a test of BioDynaMo's CUDA path with
+  the new toolchain. BioDynaMo has no HIP backend for AMD GPUs.
 
 ### Decisions taken
 
@@ -118,8 +141,9 @@ conda-forge and Spack.
 | `docs/random-numbers` | [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md) | Merged (pull request #5) |
 | `rootfree/version-tags` | Version detection ignores tags that are not version numbers | Merged (pull request #6) |
 | `rootfree/notices` | Copyright and modification notices; NumPy credit | Merged (pull request #7) |
-| `ci/maintenance` | Node.js 24 actions; no spurious Homebrew errors | In review |
-| `step1/community-deps` | Step 1: dependencies from conda-forge or Spack | In review |
+| `ci/maintenance` | Node.js 24 actions; no spurious Homebrew errors | Not merged; its Homebrew part is moot since the old macOS CI was retired |
+| `step1/community-deps` | Step 1: dependencies from conda-forge or Spack | Merged (pull request #8) |
+| `ci/retire-macos` | Old macOS CI retired; Abseil pinned until ParaView is rebuilt | Merged (pull request #10) |
 | `before-philox` | The state before the random-number switch, kept to reproduce earlier results | Reference branch |
 
 ## Installing this fork
@@ -132,16 +156,18 @@ cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --para
 source build/bin/thisbdm.sh
 ```
 
-BioDynaMo's own installation method, with prebuilt bundles from CERN, still works, but on macOS it depends on
-Homebrew packages that are being withdrawn (`python@3.9`, `qt@5`).
+BioDynaMo's own installation method, with prebuilt bundles from CERN, still works on Linux. On macOS it no
+longer does: it depends on Homebrew's `python@3.9`, which Homebrew disabled on 15 October 2026 (`qt@5` follows
+in May 2027).
 
 ## Working rules
 
 - Every change goes through a pull request inside this repository. Nothing is sent to the official BioDynaMo
   repository from here; any proposal upstream will be made separately, starting with a discussion with the
   BioDynaMo team.
-- BioDynaMo keeps working at every step: its own CI (Ubuntu, macOS) and the Conda CI must pass, and a feature
-  is replaced before its ROOT version is removed.
+- BioDynaMo keeps working at every step: its own Ubuntu CI and the Conda CI (Linux, macOS) must pass, and a
+  feature is replaced before its ROOT version is removed. Its own macOS CI was retired when Homebrew disabled
+  `python@3.9`.
 - Performance and scalability are checked against recorded baselines before a step is merged.
 - Changes that alter results on purpose are documented, with a way to reproduce the old results.
 - Commits are signed off (Developer Certificate of Origin). Work done with AI assistance is credited in the
