@@ -63,6 +63,14 @@ To update the environment after `environment.yml` changes: `conda env update -f 
   ([conda-forge/paraview-feedstock#342](https://github.com/conda-forge/paraview-feedstock/issues/342)). An
   environment created before needs updating: `conda env update -f environment.yml --prune`.
 
+- **macOS, ROOT's interpreter with a macOS 15 or newer SDK (October 2026):** conda-forge's ROOT 6.40.04
+  cannot build its module for `<stdint.h>` when the active macOS SDK is 15.x or 26.x ("libc.modulemap: header
+  'stdarg.h' not found"): its module map expects `stdarg.h` among the SDK's headers, which these SDKs no longer
+  ship. With a macOS 14 SDK it works. BioDynaMo features that make ROOT's interpreter read headers while running,
+  such as the ParaView export, fail. If a macOS 14 SDK is installed, for instance under
+  `/Library/Developer/CommandLineTools/SDKs`, point `SDKROOT` at it before running BioDynaMo. Reported to
+  conda-forge.
+
 ## Spack
 
 ```bash

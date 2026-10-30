@@ -70,4 +70,11 @@ jobs:
         . bin/thisbdm.sh
         bdm config
         if [ "$RUNNER_OS" = Linux ]; then export DISPLAY=:99.0; fi
+        # conda-forge's ROOT 6.40.04 cannot build its module for <stdint.h>
+        # with a macOS 15 or newer SDK (INSTALL.md, "Known issues"); a macOS 14
+        # SDK, where the runner has one, works.
+        if [ "$RUNNER_OS" = macOS ]; then
+          sdk14=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX14*.sdk 2>/dev/null | tail -1)
+          if [ -n "$sdk14" ]; then export SDKROOT="$sdk14"; echo "ROOT's interpreter uses $SDKROOT"; fi
+        fi
         ninja run-unit-tests
