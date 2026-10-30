@@ -1,17 +1,14 @@
-# Runs the installation tests in the following cases:
-#   1) every day at 3 am
-#   2) a pull request to the master branch
+# Runs the installation tests.
+#
+# Retired: BioDynaMo's macOS bundles depend on Homebrew's python@3.9, which Homebrew
+# disabled on 2026-10-15, so this workflow can no longer pass. The Conda CI
+# (conda-ci.yml) builds and tests BioDynaMo on macOS instead. It can still be
+# started by hand.
 
 name: macOS System CI
 
 on:
-  schedule:
-    # Every day at 3 am
-    - cron: '0 3 * * *'
-  pull_request:
-    # Upon pull requests
-    branches:
-      - master
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
