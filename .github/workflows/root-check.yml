@@ -1,0 +1,75 @@
+# Checks whether conda-forge's ROOT can include standard C headers on macOS, in a
+# clean environment with nothing but ROOT, and with each SDK the runner has.
+# Runs on pushes to its own branch; not part of BioDynaMo's CI.
+name: ROOT check (conda-forge, macOS)
+
+on:
+  push:
+    branches: [diag/root-macos]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+    - name: Create a clean environment with ROOT only
+      uses: mamba-org/setup-micromamba@v3
+      with:
+        environment-name: roottest
+        create-args: root=6.40.04
+        init-shell: bash
+        cache-environment: false
+
+    - name: Versions and SDKs
+      run: |
+        sw_vers
+        xcodebuild -version || true
+        echo "xcrun: SDK $(xcrun --show-sdk-version) at $(xcrun --show-sdk-path)"
+        echo "SDKROOT=${SDKROOT:-<unset>} CONDA_BUILD_SYSROOT=${CONDA_BUILD_SYSROOT:-<unset>} MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-<unset>}"
+        micromamba list | grep -E '^ *(root|root_base|root_cxx_standard|libcxx|libcxx-headers|python) ' || true
+        echo "root-config: $(root-config --version), runtime_cxxmodules: $(root-config --has-runtime_cxxmodules)"
+        echo "--- SDKs on this runner"
+        ls -d /Applications/Xcode*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX*.sdk \
+              /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null || true
+
+    - name: Where stdarg.h is
+      run: |
+        sdk=$(xcrun --show-sdk-path)
+        for f in "$sdk/usr/include/stdarg.h" "$sdk/usr/include/stdint.h" \
+                 "$CONDA_PREFIX/etc/cling/lib/clang/20/include/stdarg.h" \
+                 "$CONDA_PREFIX/etc/cling/lib/clang/20/include/stdint.h"; do
+          if [ -e "$f" ]; then echo "present: $f"; else echo "absent:  $f"; fi
+        done
+        echo "--- ROOT's libc.modulemap, lines 68-80"
+        sed -n 68,80p "$CONDA_PREFIX/etc/cling/libc.modulemap"
+
+    - name: Plain ROOT includes standard headers
+      run: |
+        for h in '<stdint.h>' '<stdarg.h>' '<stdio.h>' '<cstdint>'; do
+          s=0; root -l -b -q -e "#include $h" > out.txt 2>&1 || s=$?
+          echo "#include $h: exit $s"
+          [ "$s" -eq 0 ] || grep -E 'error|fatal' out.txt | head -3 || true
+        done
+
+    - name: The same with each SDK and Xcode on the runner
+      run: |
+        for sdk in /Applications/Xcode*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX*.sdk \
+                   /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk; do
+          [ -d "$sdk" ] || continue
+          s=0; SDKROOT="$sdk" root -l -b -q -e '#include <stdint.h>' > out.txt 2>&1 || s=$?
+          echo "SDKROOT=$sdk: exit $s"
+          [ "$s" -eq 0 ] || grep -m2 -E 'error|fatal' out.txt || true
+        done
+        for dev in /Applications/Xcode*.app/Contents/Developer; do
+          [ -d "$dev" ] || continue
+          s=0; DEVELOPER_DIR="$dev" root -l -b -q -e '#include <stdint.h>' > out.txt 2>&1 || s=$?
+          echo "DEVELOPER_DIR=$dev (SDK $(DEVELOPER_DIR="$dev" xcrun --show-sdk-version 2>/dev/null)): exit $s"
+          [ "$s" -eq 0 ] || grep -m2 -E 'error|fatal' out.txt || true
+        done
