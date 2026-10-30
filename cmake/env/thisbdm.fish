@@ -336,6 +336,14 @@ function source_thisbdm
             set -gx ROOT_INCLUDE_PATH (string split : -- $runtime_include_path) $ROOT_INCLUDE_PATH
         end
     end
+    # ROOT from the environment uses runtime C++ modules: at start-up its
+    # interpreter looks up the headers BioDynaMo's dictionaries name (such as
+    # core/agent/agent.h, recorded without a folder), which are in
+    # $BDMSYS/include. Without them its autoloading state is incomplete, and
+    # later lookups crash.
+    if test "$system_deps" = 'ON'
+        set -gx ROOT_INCLUDE_PATH "$BDMSYS/include" $ROOT_INCLUDE_PATH
+    end
     if test "$with_paraview" = 'ON'; and test "$system_deps" != 'ON'
         if test -z "$BDM_CUSTOM_PV"
             if test -z "$ParaView_DIR"
