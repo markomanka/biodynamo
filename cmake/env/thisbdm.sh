@@ -12,6 +12,9 @@
 # regarding copyright ownership.
 #
 # -----------------------------------------------------------------------------
+#
+# Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+# (https://github.com/markomanka/biodynamo); see its git history.
 # Source this script to set up the BioDynaMo build that this script is part of.
 #
 # Conveniently an alias like this can be defined in .bashrc or .zshrc:
@@ -386,6 +389,12 @@ _source_thisbdm()
   export CMAKE_PREFIX_PATH
   ########
 
+  #### Dependencies from the environment (conda-forge, Spack, system) ####
+  local system_deps=@BDM_SYSTEM_DEPENDENCIES@
+  if [ "$system_deps" = 'ON' ] && [ -z "${ROOTSYS}" ] && command -v root-config >/dev/null 2>&1; then
+    ROOTSYS=$(root-config --prefix); export ROOTSYS
+  fi
+
   #### ROOT Specific Configurations ####
   if [ -z "$BDM_CUSTOM_ROOT" ]; then
     if [ -z "${ROOTSYS}" ]; then
@@ -424,12 +433,41 @@ _source_thisbdm()
 
   export BDM_ROOT_DIR
   # shellcheck disable=SC1090
-  . "${BDM_ROOT_DIR}"/bin/thisroot.sh || return 1
+  if [ "$system_deps" != 'ON' ]; then
+    # The environment (conda activate, spack load) already set ROOT up; conda-forge's
+    # thisroot.sh is a stub that only prints an error.
+    . "${BDM_ROOT_DIR}"/bin/thisroot.sh || return 1
+  fi
   _bdm_define_command root || return 1
   ########
 
   #### ParaView Specific Configurations ####
-  if [ "$with_paraview" = 'ON' ]; then
+  if [ "$with_paraview" = 'ON' ] && [ "$system_deps" = 'ON' ]; then
+    # ParaView and Qt come from the environment and are already on PATH.
+    if [ -z "${PV_PLUGIN_PATH}" ]; then
+      PV_PLUGIN_PATH="${BDMSYS}/lib/pv_plugin"
+    else
+      PV_PLUGIN_PATH="${BDMSYS}/lib/pv_plugin":$PV_PLUGIN_PATH
+    fi
+    export PV_PLUGIN_PATH
+    # ROOT's interpreter compiles the agent export at run time and needs
+    # ParaView's and VTK's headers.
+    local runtime_include_path="@BDM_RUNTIME_INCLUDE_PATH@"
+    if [ -n "$runtime_include_path" ]; then
+      ROOT_INCLUDE_PATH="${runtime_include_path}${ROOT_INCLUDE_PATH:+:$ROOT_INCLUDE_PATH}"
+      export ROOT_INCLUDE_PATH
+    fi
+  fi
+  # ROOT from the environment uses runtime C++ modules: at start-up its
+  # interpreter looks up the headers BioDynaMo's dictionaries name (such as
+  # core/agent/agent.h, recorded without a folder), which are in
+  # $BDMSYS/include. Without them its autoloading state is incomplete, and
+  # later lookups crash.
+  if [ "$system_deps" = 'ON' ]; then
+    ROOT_INCLUDE_PATH="${BDMSYS}/include${ROOT_INCLUDE_PATH:+:$ROOT_INCLUDE_PATH}"
+    export ROOT_INCLUDE_PATH
+  fi
+  if [ "$with_paraview" = 'ON' ] && [ "$system_deps" != 'ON' ]; then
      if [ -z "$BDM_CUSTOM_PV" ]; then
        if [ -z "${ParaView_DIR}" ]; then
          export BDM_CUSTOM_PV=false

@@ -1,0 +1,80 @@
+name: Conda CI
+
+# Builds and tests BioDynaMo with every dependency taken from conda-forge
+# (environment.yml): no Homebrew, no pyenv, no prebuilt bundles.
+
+on:
+  push:
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+    - name: Checkout BioDynaMo
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Create the conda-forge environment
+      uses: mamba-org/setup-micromamba@v3
+      with:
+        environment-file: environment.yml
+        init-shell: bash
+        cache-environment: true
+        post-cleanup: 'all'
+
+    # The ParaView tests render through X, as in upstream's Ubuntu CI; the
+    # macOS runner has a display of its own.
+    - name: Start Xvfb
+      if: runner.os == 'Linux'
+      run: |
+        set -e
+        sudo apt-get -y install xvfb
+        XVFBARGS=":99 -ac -screen 0 2560x1440x24"
+        /usr/bin/Xvfb $XVFBARGS >> /tmp/Xvfb.out 2>&1 &
+        disown -ar
+        sleep 3
+
+    - name: Build BioDynaMo
+      run: |
+        cmake -G Ninja -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -Dparaview=ON \
+          -Dbenchmark=ON
+        grep -q '^BDM_SYSTEM_DEPENDENCIES:BOOL=ON' build/CMakeCache.txt
+        for d in root paraview qt; do
+          if [ -d "build/third_party/$d" ]; then
+            echo "::error::$d was downloaded although it should come from conda-forge"
+            exit 1
+          fi
+        done
+        cmake --build build --parallel
+
+    - name: Unit tests BioDynaMo
+      working-directory: build
+      run: |
+        . bin/thisbdm.sh
+        bdm config
+        if [ "$RUNNER_OS" = Linux ]; then export DISPLAY=:99.0; fi
+        # conda-forge's ROOT 6.40.04 cannot build its module for <stdint.h>
+        # with a macOS 15 or newer SDK (INSTALL.md, "Known issues"); a macOS 14
+        # SDK, where the runner has one, works.
+        if [ "$RUNNER_OS" = macOS ]; then
+          sdk14=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX14*.sdk 2>/dev/null | tail -1)
+          if [ -n "$sdk14" ]; then export SDKROOT="$sdk14"; echo "ROOT's interpreter uses $SDKROOT"; fi
+        fi
+        ninja run-unit-tests

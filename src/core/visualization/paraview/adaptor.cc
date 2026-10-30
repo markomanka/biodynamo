@@ -11,6 +11,9 @@
 // regarding copyright ownership.
 //
 // -----------------------------------------------------------------------------
+//
+// Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+// (https://github.com/markomanka/biodynamo); see its git history.
 
 #include <cstdlib>
 #include <fstream>
@@ -252,10 +255,19 @@ void ParaviewAdaptor::WriteSimulationInfoJsonFile() {
 void ParaviewAdaptor::GenerateParaviewState() {
   auto* sim = Simulation::GetActive();
   std::stringstream python_cmd;
-  std::string pv_dir = std::getenv("ParaView_DIR");
-  std::string bdmsys = std::getenv("BDMSYS");
+  // ParaView_DIR is set for BioDynaMo's prebuilt ParaView. With ParaView from
+  // the environment (conda-forge, Spack), pvbatch is on the PATH instead.
+  const char* pv_dir = std::getenv("ParaView_DIR");
+  const char* bdmsys = std::getenv("BDMSYS");
+  if (bdmsys == nullptr) {
+    Log::Fatal("ParaviewAdaptor::GenerateParaviewState",
+               "BDMSYS is not set: source thisbdm.sh first.");
+    return;
+  }
+  std::string pvbatch =
+      pv_dir != nullptr ? Concat(pv_dir, "/bin/pvbatch") : "pvbatch";
 
-  python_cmd << pv_dir << "/bin/pvbatch --force-offscreen-rendering " << bdmsys
+  python_cmd << pvbatch << " --force-offscreen-rendering " << bdmsys
              << "/include/core/visualization/paraview/generate_pv_state.py "
              << sim->GetOutputDir() << "/" << kSimulationInfoJson;
   int ret_code = system(python_cmd.str().c_str());

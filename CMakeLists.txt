@@ -67,6 +67,32 @@ else()
 endif()
 message(STATUS "Detected OS: ${DETECTED_OS_VERS}")
 
+# Take ROOT, ParaView, Python and the other dependencies from the active
+# environment (conda-forge, Spack or system packages) instead of downloading
+# BioDynaMo's prebuilt bundles. On by default inside a conda environment that
+# contains ROOT (an active base environment alone does not switch it on).
+if(DEFINED ENV{CONDA_PREFIX} AND EXISTS "$ENV{CONDA_PREFIX}/bin/root-config")
+  set(_bdm_system_dependencies_default ON)
+else()
+  set(_bdm_system_dependencies_default OFF)
+endif()
+option(BDM_SYSTEM_DEPENDENCIES
+       "Use ROOT, ParaView and Python from the active environment; never download bundles"
+       ${_bdm_system_dependencies_default})
+if(BDM_SYSTEM_DEPENDENCIES)
+  message(STATUS "BDM_SYSTEM_DEPENDENCIES=ON: dependencies come from the environment; nothing is downloaded")
+  if(DEFINED ENV{CONDA_PREFIX})
+    list(PREPEND CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
+  endif()
+  if(APPLE)
+    # conda-forge's libc++ headers mark recent C++ features with availability
+    # attributes that ROOT's dictionary generator cannot parse. The environment
+    # ships a libc++ that provides those features, so the markup can go (see
+    # conda-forge's knowledge base, "newer C++ features with old SDK").
+    add_definitions(-D_LIBCPP_DISABLE_AVAILABILITY)
+  endif()
+endif()
+
 if(APPLE)
   if(NOT CMAKE_OSX_SYSROOT OR CMAKE_OSX_SYSROOT STREQUAL "")
     execute_process(COMMAND xcrun --sdk macosx --show-sdk-path
@@ -82,6 +108,7 @@ if(APPLE)
   endif()
   message(STATUS "Using SDK path: ${CMAKE_OSX_SYSROOT}")
 
+  if(NOT BDM_SYSTEM_DEPENDENCIES)
   find_program(BREW_BIN brew)
   if(BREW_BIN)
     execute_process(COMMAND ${BREW_BIN} --prefix
@@ -96,6 +123,7 @@ if(APPLE)
   endif()
   # Necessary to find the OpenMP library
   set(ENV{LDFLAGS} "$ENV{LDFLAGS} -L${LIBOMP_BREW_PREFIX}/lib")
+  endif()
 endif(APPLE)
 
 # Find a suitable compiler
@@ -229,7 +257,14 @@ if (APPLE)
 endif()
 
 
-if(NOPYENV)
+if(BDM_SYSTEM_DEPENDENCIES)
+   # Any Python >= 3.9 from the environment: ROOT and ParaView were built
+   # against it there.
+   find_package(Python 3.9 REQUIRED COMPONENTS Interpreter Development)
+   set(pythonvers ${Python_VERSION})
+   set(Python3_EXECUTABLE ${Python_EXECUTABLE} CACHE FILEPATH
+       "Pin ParaView/VTK's Python3 lookup to the environment's interpreter" FORCE)
+elseif(NOPYENV)
    # On macOS
    # need to give hint which binary to find, however ideally it should be taken from the range spec 
    set(Python3_EXECUTABLE "${BREW_PREFIX}/bin/python3.9")
@@ -289,7 +324,7 @@ if(APPLE)
 endif()
 
 # Check if GLUT is present. If we do not have it, then we disable directly paraview.
-if(paraview)
+if(paraview AND NOT BDM_SYSTEM_DEPENDENCIES)
   find_package(GLUT)
   if(NOT GLUT_FOUND)
       PRINT_WARNING()
@@ -300,7 +335,7 @@ if(paraview)
   endif()
 endif()
 
-if(APPLE)
+if(APPLE AND NOT BDM_SYSTEM_DEPENDENCIES)
   # After migrating to libomp 15.0.3, libomp is no longer symlinked into 
   # $(brew --prefix)/lib/libomp.dylib. Instead, it is located in 
   # $(brew --prefix libomp)/lib . This fix should work accross all platforms.
@@ -308,7 +343,7 @@ if(APPLE)
   set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -I${LIBOMP_BREW_PREFIX}/include")
   set(OpenMP_C_INCLUDE_DIR "${LIBOMP_BREW_PREFIX}/include")
   set(OpenMP_CXX_INCLUDE_DIR "${LIBOMP_BREW_PREFIX}/include")
-endif(APPLE)
+endif()
 
 # Check if we have a compatible openmp compiler
 find_package(OpenMP)
@@ -351,10 +386,19 @@ find_package(Git)
 
 # Find ROOT and check its installation
 find_package(ROOT COMPONENTS Geom Gui GenVector)
-verify_ROOT()
+if(BDM_SYSTEM_DEPENDENCIES)
+  if(NOT ROOT_FOUND)
+    message(FATAL_ERROR "ROOT was not found in the environment. With BDM_SYSTEM_DEPENDENCIES=ON "
+            "BioDynaMo does not download it. Install it in the environment (conda-forge: "
+            "\"conda install -c conda-forge root\"; Spack: \"spack install root\"), or "
+            "configure with -DBDM_SYSTEM_DEPENDENCIES=OFF to use the prebuilt bundle.")
+  endif()
+else()
+  verify_ROOT()
+endif()
 
 # Repair MacPorts/XQuartz library paths in downloaded ROOT, including cached copies.
-if(APPLE AND ROOT_FOUND AND ROOT_INCLUDE_DIRS)
+if(APPLE AND NOT BDM_SYSTEM_DEPENDENCIES AND ROOT_FOUND AND ROOT_INCLUDE_DIRS)
   list(GET ROOT_INCLUDE_DIRS 0 BDM_ROOT_INCLUDE_DIR)
   string(REGEX REPLACE "/include$" "" BDM_ROOT_PREFIX "${BDM_ROOT_INCLUDE_DIR}")
   fix_root_install_names("${BDM_ROOT_PREFIX}")
@@ -381,7 +425,64 @@ if(numa)
   endif()
 endif()
 
-if(paraview)
+if(paraview AND BDM_SYSTEM_DEPENDENCIES)
+    # ParaView::PythonCatalyst depends, through RemotingServerManager, on
+    # ParaView's Protobuf wrapper, whose link interface names
+    # protobuf::libprotobuf. ParaView searches for Protobuf only when the
+    # wrapper itself is requested, so load Protobuf's own CMake package first
+    # (conda-forge: libprotobuf, installed with ParaView).
+    find_package(protobuf CONFIG QUIET)
+    if(TARGET protobuf::libprotobuf)
+      message(STATUS "Found Protobuf ${protobuf_VERSION}, needed by ParaView's CMake package")
+    endif()
+    find_package(ParaView CONFIG COMPONENTS Catalyst PythonCatalyst VTKExtensionsIOCore)
+    if(NOT ParaView_FOUND)
+      message(FATAL_ERROR "ParaView was not found in the environment. With BDM_SYSTEM_DEPENDENCIES=ON "
+              "BioDynaMo does not download it. Install it in the environment (conda-forge: "
+              "\"conda install -c conda-forge paraview\"; Spack: \"spack install paraview+python\"), "
+              "or configure with -Dparaview=OFF.")
+    endif()
+    set(CMAKE_BDM_PVVERSION "${ParaView_VERSION_MAJOR}.${ParaView_VERSION_MINOR}")
+    message(STATUS "Using ParaView ${ParaView_VERSION} from ${ParaView_PREFIX_PATH}")
+    # Link only what BioDynaMo uses. ParaView_LIBRARIES lists every ParaView
+    # module, including wrappers of optional libraries (such as Protobuf) that
+    # ParaView looks for only when a requested component needs them; linking
+    # them all fails when generating the build files.
+    set(ParaView_LIBRARIES
+        ParaView::Catalyst ParaView::PythonCatalyst ParaView::VTKExtensionsIOCore
+        VTK::CommonCore VTK::CommonDataModel VTK::CommonExecutionModel VTK::IOCore
+        VTK::IOXML VTK::IOParallelXML VTK::ImagingCore VTK::ParallelCore)
+    include_directories(${ParaView_PREFIX_PATH}/include/paraview-${CMAKE_BDM_PVVERSION})
+    # ROOT's dictionary generator sees only directories added with
+    # include_directories(). The prebuilt bundle kept VTK's headers inside
+    # ParaView's folder.
+    # VTK's header folder. conda-forge and Spack install VTK apart from
+    # ParaView, and VTK records the folder on its own support libraries (such
+    # as VTK::vtksys), not on modules like VTK::CommonCore.
+    set(_bdm_vtk_includes)
+    foreach(_bdm_target VTK::vtksys VTK::CommonCore)
+      if(TARGET ${_bdm_target})
+        get_target_property(_bdm_dirs ${_bdm_target} INTERFACE_INCLUDE_DIRECTORIES)
+        if(_bdm_dirs)
+          list(APPEND _bdm_vtk_includes ${_bdm_dirs})
+        endif()
+      endif()
+    endforeach()
+    list(REMOVE_DUPLICATES _bdm_vtk_includes)
+    find_path(BDM_VTK_INCLUDE_DIR vtkObject.h PATHS ${_bdm_vtk_includes} NO_DEFAULT_PATH)
+    if(NOT BDM_VTK_INCLUDE_DIR)
+      message(FATAL_ERROR "VTK's headers (vtkObject.h) were not found in the folders VTK's CMake "
+              "package declares (${_bdm_vtk_includes}). ROOT's dictionaries and interpreter need them.")
+    endif()
+    message(STATUS "VTK headers: ${BDM_VTK_INCLUDE_DIR}")
+    include_directories(${BDM_VTK_INCLUDE_DIR})
+    # ROOT's interpreter compiles the agent export at run time and needs the
+    # same headers; thisbdm.sh exports them as ROOT_INCLUDE_PATH.
+    set(BDM_RUNTIME_INCLUDE_PATH
+        "${ParaView_PREFIX_PATH}/include/paraview-${CMAKE_BDM_PVVERSION}:${BDM_VTK_INCLUDE_DIR}")
+    message(STATUS "Headers for ROOT's interpreter: ${BDM_RUNTIME_INCLUDE_PATH}")
+    add_definitions("-DUSE_PARAVIEW")
+elseif(paraview)
     # If we specify a custom location for ParaView then we need to specify also a custom location for Qt.
     if ((DEFINED ENV{ParaView_DIR} AND NOT DEFINED ENV{Qt5_DIR}) OR (NOT DEFINED ENV{ParaView_DIR} AND DEFINED ENV{Qt5_DIR}))
         MESSAGE(FATAL_ERROR "\nFATAL ERROR \nYou need to specify both ParaView_DIR and Qt5_DIR in order to build "
@@ -571,6 +672,20 @@ elseif(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 include(SetCompilerFlags)
+# With ROOT from the environment, build with the C++ standard ROOT was built with:
+# ROOT supports only that, and its interpreter parses BioDynaMo's classes with
+# it (conda-forge's ROOT uses C++20; the prebuilt bundles use C++17).
+if(BDM_SYSTEM_DEPENDENCIES AND ROOT_CONFIG_EXECUTABLE)
+  execute_process(COMMAND ${ROOT_CONFIG_EXECUTABLE} --cflags
+                  OUTPUT_VARIABLE _bdm_root_cflags OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(_bdm_root_cflags MATCHES "-std=(c|gnu)\\+\\+([0-9]+)")
+    set(_bdm_root_cxx_standard ${CMAKE_MATCH_2})
+    if(_bdm_root_cxx_standard GREATER CMAKE_CXX_STANDARD)
+      message(STATUS "Using C++${_bdm_root_cxx_standard}, the standard ROOT was built with")
+      set(CMAKE_CXX_STANDARD ${_bdm_root_cxx_standard})
+    endif()
+  endif()
+endif()
 
 # -------------------- set rpath options ---------------------------------------
 #  When building, don't use the install RPATH already (but later on when installing)
@@ -649,9 +764,19 @@ if(paraview)
 
   # We link against python3 libraries, so that the paraview libraries can
   # resolve missing python symbols when creating binaries
-  if(APPLE)
+  if(APPLE AND NOT BDM_SYSTEM_DEPENDENCIES)
     set(REQUIRED_PARAVIEW_LIBRARIES "${ParaView_LIBRARIES};${Python3_LIBRARIES}")
+  elseif(APPLE)
+    # With dependencies from the environment, find_package(Python ... Development)
+    # provides the interpreter library; Python3_LIBRARIES, from VTK's own search,
+    # is empty on macOS. conda-forge links with -dead_strip_dylibs, which drops
+    # libraries whose symbols BioDynaMo does not call, while ParaView's Python
+    # libraries take Python's symbols from the process at load time:
+    # -needed_library keeps libpython, as --no-as-needed does on Linux below.
+    set(REQUIRED_PARAVIEW_LIBRARIES "${ParaView_LIBRARIES};-Wl,-needed_library,${Python_LIBRARIES}")
   else()
+    # With dependencies from the environment, find_package(Python ... Development)
+    # provides the interpreter library.
     set(REQUIRED_PARAVIEW_LIBRARIES "${ParaView_LIBRARIES};${Python_LIBRARIES}")
   endif()
   build_shared_library(VisualizationAdaptor
@@ -873,7 +998,7 @@ set(configargs ${BDM_CONFIGARGS})
 set(cmakeinvoke "${CMAKE_INVOKE} -G ${CMAKE_GENERATOR}")
 set(omplibs ${OpenMP_CXX_LIBRARIES})
 set(with_pyenv ON)
-if (NOPYENV)
+if (NOPYENV OR BDM_SYSTEM_DEPENDENCIES)
    set(with_pyenv OFF)
 endif()
 if (DEFINED ENV{PYENV_ROOT})

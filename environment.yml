@@ -1,0 +1,44 @@
+# Everything needed to build and run this fork of BioDynaMo, from conda-forge.
+#
+#   conda env create -f environment.yml     (or mamba / micromamba)
+#   conda activate biodynamo
+#   cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release
+#   cmake --build build --parallel
+#
+# Inside this environment CMake sets BDM_SYSTEM_DEPENDENCIES=ON: it takes all
+# dependencies from here and downloads nothing. See INSTALL.md.
+name: biodynamo
+channels:
+  - conda-forge
+dependencies:
+  # Toolchain (GCC on Linux, Clang on macOS)
+  - c-compiler
+  - cxx-compiler
+  - cmake >=3.24
+  - ninja
+  - make
+  - git
+  - pkg-config
+  # Parallelism
+  - llvm-openmp        # OpenMP runtime for Clang on macOS; harmless on Linux
+  - openmpi
+  # Libraries
+  - libboost-devel
+  - python >=3.11
+  # Temporary: ROOT leaves BioDynaMo with the ROOT-free I/O (SKUNKWORKS.md).
+  - root >=6.36
+  # Optional: remove these lines and configure with -Dparaview=OFF.
+  # On macOS, ParaView 6.2.0 needs build 2 or newer (conda-forge/paraview-feedstock#342).
+  - paraview >=6.2
+  # The CPU build of Viskores, which VTK uses: on machines with an NVIDIA driver, conda
+  # would pick a CUDA build, whose CMake package then requires nvcc.
+  - viskores=*=cpu_*
+  # Development files that ParaView's and VTK's CMake packages look for but
+  # that conda-forge does not install with them.
+  - tbb-devel
+  - eigen
+  - expat
+  - liblzma-devel
+  - fast_float
+  - exprtk
+  - libxslt            # xsltproc, which ParaView uses to document plugins
