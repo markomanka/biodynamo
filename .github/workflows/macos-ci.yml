@@ -1,10 +1,11 @@
 name: macOS CI
 
+# Retired: BioDynaMo's macOS bundles depend on Homebrew's python@3.9, which Homebrew
+# disabled on 2026-10-15, so this workflow can no longer pass. The Conda CI
+# (conda-ci.yml) builds and tests BioDynaMo on macOS instead. It can still be
+# started by hand.
 on:
-  push:
-  pull_request:
-    branches:
-      - master
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
