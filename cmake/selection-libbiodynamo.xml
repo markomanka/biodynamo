@@ -153,16 +153,8 @@
     <class name="bdm::SharedData<uint64_t>" />
     <class name="bdm::SharedData<bdm::MathArray<double,3>>" />
     <class name="bdm::SharedData<bdm::MathArray<double,4>>" />
-    <!-- Checkpoints write SharedData::data_, a vector of AlignedT. Without these
-         in the dictionary, ROOT 6.40 looks them up through the interpreter while
-         writing, which crashes on Linux. -->
-    <class name="bdm::SharedData<std::vector<bdm::AgentUid>>::AlignedT" />
-    <class name="std::vector<bdm::SharedData<std::vector<bdm::AgentUid>>::AlignedT>" />
-    <class name="bdm::SharedData<uint64_t>::AlignedT" />
-    <class name="std::vector<bdm::SharedData<uint64_t>::AlignedT>" />
-    <class name="bdm::SharedData<bdm::MathArray<double,3>>::AlignedT" />
-    <class name="std::vector<bdm::SharedData<bdm::MathArray<double,3>>::AlignedT>" />
-    <class name="bdm::SharedData<bdm::MathArray<double,4>>::AlignedT" />
-    <class name="std::vector<bdm::SharedData<bdm::MathArray<double,4>>::AlignedT>" />
   </selection>
+  <exclusion>
+    <class pattern="bdm::SharedData<*>::AlignedT" />
+  </exclusion>
 </lcgdict>
