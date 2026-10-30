@@ -1,4 +1,4 @@
-# BioDynaMo skunkworks: packaging, scalability, interoperability
+# BioDynaMo skunkworks: ROOT-free, easy to install, interoperable
 
 This repository is an independent, experimental fork of [BioDynaMo](https://github.com/BioDynaMo/biodynamo).
 Anything here may change or be dropped, and nothing here is an official BioDynaMo release. The fork is not
@@ -6,39 +6,85 @@ affiliated with or endorsed by the BioDynaMo team.
 
 ## Goals
 
-1. **Packaging for general-purpose distributions.** BioDynaMo should build from source with system packages
-   only (Debian and Ubuntu, Fedora, conda-forge, Spack, Homebrew), with no downloads during the build and with
-   any supported Python.
-2. **Scalability.** Replace ROOT I/O for checkpoints and for exchanging agents between processes with a lighter,
-   validated format, as groundwork for running one simulation across many nodes.
-3. **Interoperability with other agent-based simulation suites.** Read and write the formats other tools use,
-   starting with PhysiCell's, and share boundary-condition and exchange semantics, so that models, data and
-   analysis tools can move between suites.
+1. **BioDynaMo without ROOT.** No feature may depend on ROOT: not checkpoints, parameters, the exchange of
+   agents between processes or reflection, and not notebooks, statistics, plotting or visualization either.
+2. **A shared I/O library.** Checkpoints, agent exchange and visualization files move into
+   [abm-io](https://github.com/markomanka/abm-io) (private for now), a library that other agent-based suites can
+   adopt as well, starting with PhysiCell.
+3. **Easy installation and maintenance.** Every dependency comes from a community-maintained ecosystem:
+   conda-forge by default, Spack on HPC clusters. Nothing is downloaded at build time.
+4. **Performance and scalability are kept.** Every step is benchmarked, and the I/O work aims to make
+   multi-node runs faster, not slower.
 
-## What blocks packaging today
+Visualization keeps using ParaView, taken from conda-forge. BioDynaMo will write open file formats and use
+open in-situ interfaces, so that ParaView can be replaced if a competitive interactive 3D tool appears.
 
-Found while building BioDynaMo outside its prebuilt bundles (October 2026):
+## Plan
 
-| Dependency | Problem for distributions | Plan |
-| --- | --- | --- |
-| ROOT | When no compatible ROOT is installed, the build downloads a pinned prebuilt one (6.30.02 on Linux) from cern.ch. Reflection dictionaries, the Cling interpreter, checkpoints, plotting and notebooks all depend on ROOT. | Replace it feature by feature (next section) |
-| Python | The build requires one exact Python 3.9 release, because the prebuilt ROOT and ParaView bundles were built against it. Python 3.9 reached end of life in October 2025. | `-DBDM_ANY_PYTHON=ON` accepts any Python 3.9 or newer; it becomes the default once ROOT is gone |
-| Open MPI | Mandatory even when no MPI feature is used | Make it optional |
-| optim (bundled) | Built in C++11 mode, so it needs Armadillo older than 13 | Build it as C++14 or newer |
-| ParaView | Prebuilt bundle downloaded when enabled | Use a system ParaView or VTK when present |
+| Step | Content | Result | Status |
+| --- | --- | --- | --- |
+| 1 · Community dependencies | `BDM_SYSTEM_DEPENDENCIES` option; `environment.yml`; ParaView adaptor ported to ParaView 6.2 and VTK 9.7; Conda CI on Linux and macOS; [INSTALL.md](INSTALL.md) | No Python 3.9, Qt 5 or CERN downloads. ROOT stays only as a bridge until step 3 | In review |
+| 2 · ROOT-free features | Plotting and statistics (`TimeSeries`, `LineGraph`) export their data, with plots from Vega-Lite specifications in notebooks or matplotlib; notebooks on the `xeus-cpp` kernel; user-defined distributions without `TF1`/`TF2`/`TF3`; the ROOT geometry viewer removed; the remaining `TMath`, `TEnv` and `TSystem`; demos | No user-facing feature needs ROOT | Planned |
+| 3 · I/O and reflection | `abm-gen` (a Clang LibTooling generator, replacing `rootcling`) and `abm-io`: HDF5 checkpoints, JSON parameters, MPI exchange, a type registry, and field tables replacing Cling's run-time code generation; then plugin loading through `dlopen`; then `rootcling` and ROOT leave the build; `abm-io` is released and gets a PhysiCell adapter | ROOT gone completely | Planned |
+| 4 · Visualization independence | `abm-io` writes VTKHDF (HDF5-based VTK files, read by ParaView and PyVista) from the field tables, without linking VTK; Catalyst 2 for in-situ use; evaluation of alternatives to ParaView | ParaView optional and replaceable | Planned |
+
+Physics fixes for agents accumulating at borders run in parallel (see below). `abm-io`'s
+`docs/ROADMAP.md` maps these steps onto its milestones, gates and issues.
+
+### Decisions taken
+
+| Question | Decision |
+| --- | --- |
+| Scope of the ROOT removal | Everything, including notebooks, statistics, plotting and visualization |
+| Random numbers | Philox4x64-10; results stay reproducible from the seed, but differ from ROOT's (see [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md)) |
+| File container | HDF5, through HighFive; ADIOS2 only if HPC users need it |
+| Who writes visualization files | `abm-io`, as VTKHDF from the generated field tables |
+| Dependency ecosystem | conda-forge by default, Spack for HPC clusters |
+| ParaView | conda-forge's ParaView 6.2 (legacy Catalyst) now; Catalyst 2 later; replaceable |
+| Plugin loading | Stays with ROOT until step 3: with `dlopen`, Cling's agent export failed on macOS |
+
+## Where ROOT is used today
+
+Measured on `master` in October 2026: 114 files, about 470 uses.
+
+| Area | Files | Uses | What it is | Step |
+| --- | --- | --- | --- | --- |
+| Library (`src/`) | 57 | 246 | Class registration for I/O (`BDM_CLASS_DEF`, `TRootIOCtor`), reflection, checkpoints, the Cling-based agent export, plotting (`TGraph`, `TCanvas`), `TF1` | 2, 3 |
+| CMake | 13 | 88 | Bundle download, dictionaries (`rootcling`), `ROOTSYS` | 3 |
+| Demos | 12 | 54 | Plots and ROOT files | 2 |
+| Notebooks | 15 | 39 | ROOT's notebook kernel and its JavaScript plots (JSROOT) | 2 |
+| Tests, docs, scripts, other | 22 | 43 | Assorted | 2, 3 |
 
 ## Replacing ROOT
 
-Replacements must be compatible with Apache-2.0, so GPL libraries are excluded.
+Replacements must be compatible with Apache-2.0, so GPL libraries are excluded, and must be packaged on
+conda-forge and Spack.
 
 | Area | Replacement | Status |
 | --- | --- | --- |
 | Logging, math helpers | In-house, with ROOT's output format and verbosity levels | Done (pull request #1) |
-| Random numbers and distributions | Philox4x64-10 with in-house distribution algorithms; see [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md) | Done; user-defined distributions still use ROOT's function classes |
-| Plugin loading, system information | `std::filesystem`; `dlopen` for plugins once the agent export no longer compiles code with Cling | Folder size done (pull request #3); plugin loading in phase 3 |
-| Plotting | CSV or JSON export with matplotlib; optional matplot++ in C++ | Planned |
-| Notebooks | xeus-cpp Jupyter kernel; pyvista for 3D views | Planned |
-| Reflection, checkpoints, parameter JSON, MPI messages | A source generator built on Clang LibTooling, and a separate I/O library with HDF5 files | Planned |
+| Random numbers and distributions | Philox4x64-10 with in-house distribution algorithms | Done (pull request #4); user-defined distributions in step 2 |
+| System calls | `std::filesystem` | Folder size done (pull request #3); `TEnv` and `TSystem` in step 2 |
+| Plotting and statistics | Data export (CSV, HDF5); Vega-Lite specifications rendered by Jupyter; matplotlib for static figures | Step 2 |
+| Notebooks | The `xeus-cpp` kernel (conda-forge) instead of ROOT's; PyVista for 3D views | Step 2 |
+| ROOT geometry viewer | Removed; ParaView and the file export cover its uses | Step 2 |
+| Reflection, checkpoints, parameter JSON, MPI messages | `abm-gen` and `abm-io`, with HDF5 files and nlohmann/json | Step 3 |
+| Cling's run-time code generation (agent export) | Generated field tables | Step 3 |
+| Plugin loading | `dlopen` | Step 3, after the field tables |
+| Building | ROOT, `rootcling` and the bundle downloads leave CMake | Step 3 |
+
+## Visualization
+
+- **Now:** ParaView 6.2 from conda-forge, built with Qt 6. It still contains legacy Catalyst, the in-situ
+  interface BioDynaMo uses, and all of BioDynaMo's ParaView code compiles against it; only the zero-copy agent
+  array needed porting, because VTK 9.7 removed `vtkMappedDataArray`. The port also builds against the VTK of
+  the old ParaView 5.10 bundle.
+- **Files:** `abm-io` will write VTKHDF from the field tables. Any tool that reads VTKHDF (ParaView, PyVista,
+  others) can then open BioDynaMo output, and BioDynaMo no longer needs VTK to write it.
+- **In situ:** Catalyst 2 replaces legacy Catalyst. conda-forge has no Catalyst 2 package (`libcatalyst`) yet;
+  Spack has one, and contributing one to conda-forge is part of the plan.
+- **Alternatives:** interactive 3D tools that could replace ParaView will be evaluated on performance with large
+  agent counts, in-situ support, licence and packaging.
 
 ## Scalability
 
@@ -49,48 +95,55 @@ Replacements must be compatible with Apache-2.0, so GPL libraries are excluded.
   [Breitwieser et al. (arXiv:2509.24063)](https://arxiv.org/abs/2509.24063) report at several hundred
   megabytes per MPI rank.
 - One ghost-agent mechanism will serve borders between processes, periodic boundaries and symmetry planes.
+- NUMA awareness and MPI stay available with conda-forge (`libnuma`, Open MPI) and Spack.
 
 ## Interoperability with PhysiCell and other suites
 
 - **Data exchange:** PhysiCell writes MultiCellDS XML with cell data in MATLAB Level 4 `.mat` files. An
-  importer and exporter will let initial conditions and results move between the two suites.
+  importer and exporter in `abm-io` will let initial conditions and results move between the two suites.
 - **Checkpoints:** a format complete enough for restarts in both suites; PhysiCell's current resume does not
   restore intracellular model state, cell graphs, the `is_movable` flag or custom global state.
 - **Comparable results at boundaries:** closed walls clamp agents onto the wall, and chemotaxis moves agents
   at full speed along even negligible gradients. Both make agents accumulate at borders. Fixing them, with the
   old behaviour kept behind a flag, makes models comparable across suites.
-- **In-situ tools:** MPI-native interfaces for tools such as ParaView Catalyst and OpenLB.
+- **Visualization:** VTKHDF output and Catalyst 2 are open to every suite, not only BioDynaMo.
 
 ## Status
 
 | Branch | Content | State |
 | --- | --- | --- |
-| `rootfree/phase1` | Logging and math helpers without ROOT; `BDM_ANY_PYTHON` option | Merged into `master` (pull request #1) |
-| `rootfree/phase1-part2` | Output-folder size without a shell. Plugin loading stays with ROOT until phase 3: with `dlopen`, the ParaView agent export failed on macOS | Merged into `master` (pull request #3) |
-| `rootfree/rng` | Philox4x64-10 random number generator; changes stochastic results (see [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md)) | Merged into `master` (pull request #4) |
-| `rootfree/version-tags` | Version detection ignores tags that are not version numbers | Merged into `master` (pull request #6) |
+| `rootfree/phase1` | Logging and math helpers without ROOT; `BDM_ANY_PYTHON` option | Merged (pull request #1) |
+| `rootfree/phase1-part2` | Output-folder size without a shell; plugin loading back on ROOT until step 3 | Merged (pull request #3) |
+| `rootfree/rng` | Philox4x64-10 random number generator; changes stochastic results | Merged (pull request #4) |
+| `docs/random-numbers` | [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md) | Merged (pull request #5) |
+| `rootfree/version-tags` | Version detection ignores tags that are not version numbers | Merged (pull request #6) |
+| `rootfree/notices` | Copyright and modification notices; NumPy credit | Merged (pull request #7) |
+| `ci/maintenance` | Node.js 24 actions; no spurious Homebrew errors | In review |
+| `step1/community-deps` | Step 1: dependencies from conda-forge or Spack | In review |
+| `before-philox` | The state before the random-number switch, kept to reproduce earlier results | Reference branch |
 
-## Building this fork
+## Installing this fork
 
-Follow BioDynaMo's [developer guide](https://www.biodynamo.org/developer-guide/). To build against a ROOT that does
-not come from the prebuilt bundle, for example conda-forge's, add `-DBDM_ANY_PYTHON=ON`. One configuration that
-builds:
+See [INSTALL.md](INSTALL.md). In short, with conda-forge:
 
+```bash
+conda env create -f environment.yml && conda activate biodynamo
+cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+source build/bin/thisbdm.sh
 ```
-conda create -n bdm -c conda-forge root cxx-compiler cmake ninja openmpi "armadillo<13"
-conda activate bdm
-cmake -S . -B build -G Ninja -DBDM_ANY_PYTHON=ON -DROOT_DIR=$CONDA_PREFIX/cmake \
-  -Dparaview=OFF -Dnuma=OFF -Dboost=OFF -Dnotebooks=OFF -Dsbml=OFF
-cmake --build build
-```
+
+BioDynaMo's own installation method, with prebuilt bundles from CERN, still works, but on macOS it depends on
+Homebrew packages that are being withdrawn (`python@3.9`, `qt@5`).
 
 ## Working rules
 
 - Every change goes through a pull request inside this repository. Nothing is sent to the official BioDynaMo
   repository from here; any proposal upstream will be made separately, starting with a discussion with the
   BioDynaMo team.
-- Each change keeps BioDynaMo building with ROOT until the last ROOT use is removed, and BioDynaMo's own CI
-  must pass.
+- BioDynaMo keeps working at every step: its own CI (Ubuntu, macOS) and the Conda CI must pass, and a feature
+  is replaced before its ROOT version is removed.
+- Performance and scalability are checked against recorded baselines before a step is merged.
+- Changes that alter results on purpose are documented, with a way to reproduce the old results.
 - Commits are signed off (Developer Certificate of Origin). Work done with AI assistance is credited in the
   commit with `Co-authored-by: Claude <noreply@anthropic.com>`.
 - Changes from the official BioDynaMo are merged in periodically.
@@ -98,6 +151,6 @@ cmake --build build
 ## Licence and attribution
 
 BioDynaMo is developed by the BioDynaMo collaboration (see [NOTICE](NOTICE)) and licensed under Apache-2.0;
-this fork keeps that licence. The modifications are recorded in this repository's history and noted in NOTICE. Third-party code adapted
-here is listed in NOTICE, with its licences in `third_party/licenses/`. Files added in this fork carry their
-own copyright line below BioDynaMo's header, and modified files say so below it.
+this fork keeps that licence. The modifications are recorded in this repository's history and noted in NOTICE.
+Third-party code adapted here is listed in NOTICE, with its licences in `third_party/licenses/`. Files added in
+this fork carry their own copyright line below BioDynaMo's header, and modified files say so below it.
