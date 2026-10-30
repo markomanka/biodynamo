@@ -11,6 +11,9 @@
 // regarding copyright ownership.
 //
 // -----------------------------------------------------------------------------
+//
+// Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+// (https://github.com/markomanka/biodynamo); see its git history.
 #ifdef USE_PARAVIEW
 
 #include <gtest/gtest.h>
@@ -35,9 +38,13 @@ std::string GetPythonScriptPath(const std::string& python_script) {
 void Validate(const std::string& python_script, const std::string& sim_name,
               uint64_t num_elements, bool use_pvsm) {
   std::stringstream cmd;
-  std::string pv_dir = std::getenv("ParaView_DIR");
+  // ParaView_DIR is set for BioDynaMo's prebuilt ParaView. With ParaView from
+  // the environment (conda-forge, Spack), pvbatch is on the PATH instead.
+  const char* pv_dir = std::getenv("ParaView_DIR");
+  std::string pvbatch =
+      pv_dir != nullptr ? Concat(pv_dir, "/bin/pvbatch") : "pvbatch";
 
-  cmd << pv_dir << "/bin/pvbatch " << GetPythonScriptPath(python_script)
+  cmd << pvbatch << " " << GetPythonScriptPath(python_script)
       << " --sim_name=" << sim_name << " --num_elements=" << num_elements;
   if (use_pvsm) {
     cmd << " --use_pvsm";

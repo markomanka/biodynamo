@@ -37,6 +37,18 @@ jobs:
         cache-environment: true
         post-cleanup: 'all'
 
+    # The ParaView tests render through X, as in upstream's Ubuntu CI; the
+    # macOS runner has a display of its own.
+    - name: Start Xvfb
+      if: runner.os == 'Linux'
+      run: |
+        set -e
+        sudo apt-get -y install xvfb
+        XVFBARGS=":99 -ac -screen 0 2560x1440x24"
+        /usr/bin/Xvfb $XVFBARGS >> /tmp/Xvfb.out 2>&1 &
+        disown -ar
+        sleep 3
+
     - name: Build BioDynaMo
       run: |
         cmake -G Ninja -B build \
@@ -57,4 +69,5 @@ jobs:
       run: |
         . bin/thisbdm.sh
         bdm config
+        if [ "$RUNNER_OS" = Linux ]; then export DISPLAY=:99.0; fi
         ninja run-unit-tests
