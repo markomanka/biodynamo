@@ -30,6 +30,9 @@ dependencies:
   # Optional: remove these lines and configure with -Dparaview=OFF.
   # On macOS, ParaView 6.2.0 needs build 2 or newer (conda-forge/paraview-feedstock#342).
   - paraview >=6.2
+  # The CPU build of Viskores, which VTK uses: on machines with an NVIDIA driver, conda
+  # would pick a CUDA build, whose CMake package then requires nvcc.
+  - viskores=*=cpu_*
   # Development files that ParaView's and VTK's CMake packages look for but
   # that conda-forge does not install with them.
   - tbb-devel
