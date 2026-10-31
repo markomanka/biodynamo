@@ -16,21 +16,25 @@
   |
   <a href="https://www.biodynamo.org/developer-guide/">Developer's guide</a>
   |
-  <a href="https://github.com/markomanka/biodynamo/issues/new">Report an issue with this fork</<p align="center">
+  <a href="https://github.com/markomanka/biodynamo/issues/new">Report an issue with this fork</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/markomanka/biodynamo/actions/workflows/ubuntu-ci.yml"><img src="https://github.com/markomanka/biodynamo/actions/workflows/ubuntu-ci.yml/badge.svg"/></a>
   <a href="https://github.com/markomanka/biodynamo/actions/workflows/macos-ci.yml"><img src="https://github.com/markomanka/biodynamo/actions/workflows/macos-ci.yml/badge.svg"/></a>
+  <a href="https://github.com/markomanka/biodynamo/actions/workflows/conda-ci.yml"><img src="https://github.com/markomanka/biodynamo/actions/workflows/conda-ci.yml/badge.svg"/></a>
   <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/></a>
 </p>
 
 > [!IMPORTANT]
 > **This is an independent, experimental ("skunkworks") fork of BioDynaMo, not the official project.**
-> It aims to remove the dependencies that keep BioDynaMo out of general-purpose software
-> distributions, starting with ROOT, and at the same time to improve its scalability and its
-> interoperability with other agent-based simulation suites such as PhysiCell.
+> It aims to free BioDynaMo of ROOT entirely, to move its I/O into a library that other agent-based
+> simulation suites such as PhysiCell can share, and to make it easy to install from community-maintained
+> packages (conda-forge, Spack), while keeping its performance and scalability.
 > It is not affiliated with or endorsed by the BioDynaMo team. For the official project, releases
 > and support, see [BioDynaMo/biodynamo](https://github.com/BioDynaMo/biodynamo).
-> Goals, status and how to build this fork: [SKUNKWORKS.md](SKUNKWORKS.md).e-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/></a>
-</p>
+> Goals, plan and status: [SKUNKWORKS.md](SKUNKWORKS.md). Installing this fork: [INSTALL.md](INSTALL.md);
+> the installation section further down describes the official method.
 
 ## What is BioDynaMo?
 
