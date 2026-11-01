@@ -422,6 +422,11 @@ if(numa)
     link_directories(${NUMA_LIBRARY_DIR})
     add_definitions("-DUSE_NUMA")
     set(BDM_REQUIRED_LIBRARIES ${BDM_REQUIRED_LIBRARIES} ${NUMA_LIBRARY})
+  else()
+    # Without libnuma BioDynaMo builds without NUMA support. Projects must know:
+    # UseBioDynaMo.cmake requires libnuma whenever numa is ON.
+    message(STATUS "libnuma not found: building without NUMA support")
+    set(numa OFF)
   endif()
 endif()
 

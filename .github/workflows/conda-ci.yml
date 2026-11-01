@@ -78,3 +78,19 @@ jobs:
           if [ -n "$sdk14" ]; then export SDKROOT="$sdk14"; echo "ROOT's interpreter uses $SDKROOT"; fi
         fi
         ninja run-unit-tests
+
+    - name: Build and run a project outside BioDynaMo's tree
+      run: |
+        . build/bin/thisbdm.sh
+        cmake -G Ninja -S demo/cell_division -B out-of-tree -DCMAKE_BUILD_TYPE=Release
+        cmake --build out-of-tree
+        std=$(root-config --cflags | grep -oE -- '-std=(c|gnu)\+\+[0-9]+' | grep -oE '[0-9]+$')
+        if ! grep -qE -- "-std=(c|gnu)\+\+${std}( |$)" out-of-tree/build.ninja; then
+          echo "::error::the project did not compile with ROOT's C++${std}"
+          exit 1
+        fi
+        if [ "$RUNNER_OS" = macOS ]; then
+          sdk14=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX14*.sdk 2>/dev/null | tail -1)
+          if [ -n "$sdk14" ]; then export SDKROOT="$sdk14"; fi
+        fi
+        (cd out-of-tree && ./cell_division)

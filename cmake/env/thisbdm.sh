@@ -237,8 +237,12 @@ _source_thisbdm()
     fi
   fi    
 
-  # If we run on macOS, we add the following exports for libomp support
-  if [ "$(uname)" = "Darwin" ]; then
+  # On macOS, Homebrew's libomp provides OpenMP, unless BioDynaMo was built with
+  # dependencies from an environment (conda-forge, Spack), which provides it.
+  # Flags for a libomp that is not installed would break OpenMP in projects
+  # configured after sourcing this script.
+  if [ "$(uname)" = "Darwin" ] && [ "@BDM_SYSTEM_DEPENDENCIES@" != 'ON' ] \
+     && command -v brew >/dev/null 2>&1 && [ -d "$(brew --prefix)/opt/libomp/include" ]; then
     BREWPREFIX=$(brew --prefix)
     if [ -n "${CPPFLAGS}" ]; then
       _drop_bdm_from_path "$CPPFLAGS" "-I$BREWPREFIX/opt/libomp/include"
