@@ -45,9 +45,9 @@ Physics fixes for agents accumulating at borders run in parallel (see below). `a
   ([paraview-feedstock#342](https://github.com/conda-forge/paraview-feedstock/issues/342), fixed in build 2);
   ROOT 6.40.04 cannot include `<stdint.h>` with a macOS 15 or newer SDK
   ([root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396), open: CI and
-  [INSTALL.md](INSTALL.md) use a macOS 14 SDK meanwhile); ParaView 6.2.0 uses Abseil 20260526 without pinning it
-  ([paraview-feedstock#345](https://github.com/conda-forge/paraview-feedstock/issues/345), open:
-  `environment.yml` pins `libabseil=20260526` meanwhile).
+  [INSTALL.md](INSTALL.md) use a macOS 14 SDK meanwhile); ParaView 6.2.0 used Abseil 20260526 without pinning it
+  ([paraview-feedstock#345](https://github.com/conda-forge/paraview-feedstock/issues/345), settled: pinned in
+  #346 and rebuilt for Abseil 20260817 in #347, so `environment.yml` no longer pins Abseil).
 - **BioDynaMo's own macOS CI is retired:** its bundles depend on Homebrew's `python@3.9`, which Homebrew disabled
   on 15 October 2026. The Conda CI covers macOS (pull request #10).
 - **GPUs:** the Viskores choice affects only ParaView's accelerated filters; BioDynaMo's own CUDA and OpenCL

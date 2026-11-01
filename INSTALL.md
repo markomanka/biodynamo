@@ -71,12 +71,6 @@ To update the environment after `environment.yml` changes: `conda env update -f 
   `/Library/Developer/CommandLineTools/SDKs`, point `SDKROOT` at it before running BioDynaMo. Reported as
   [conda-forge/root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396).
 
-- **ParaView with Abseil 20260817 (October 2026):** conda-forge's ParaView 6.2.0 uses symbols of Abseil
-  20260526 without requiring that version, so an environment with Abseil 20260817 fails with "undefined symbol:
-  _ZN4absl..." as soon as ParaView's server-manager library is used. `environment.yml` pins
-  `libabseil=20260526` until ParaView is rebuilt
-  ([conda-forge/paraview-feedstock#345](https://github.com/conda-forge/paraview-feedstock/issues/345)).
-
 ## Spack
 
 ```bash
