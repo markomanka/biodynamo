@@ -40,6 +40,8 @@ SET(cuda_default @cuda@)
 SET(opencl_default @opencl@)
 SET(dict_default @dict@)
 SET(numa_default @numa@)
+# Whether BioDynaMo's dependencies came from an environment (conda-forge, Spack).
+SET(BDM_SYSTEM_DEPENDENCIES @BDM_SYSTEM_DEPENDENCIES@)
 SET(sbml_default @sbml@)
 SET(vtune_default @vtune@)
 SET(tcmalloc_default @tcmalloc@)
@@ -160,7 +162,9 @@ else(MPI_FOUND)
   calling cmake. The OpenMPI library is required in order to successfully use BioDynaMo." )
 endif(MPI_FOUND)
 
-if(APPLE)
+# With dependencies from an environment, OpenMP comes from there, as in
+# BioDynaMo's own build; Homebrew's libomp may not even be installed.
+if(APPLE AND NOT BDM_SYSTEM_DEPENDENCIES)
   find_program(BREW_BIN brew)
   execute_process(COMMAND ${BREW_BIN} --prefix
                       OUTPUT_VARIABLE BREW_PREFIX
@@ -171,7 +175,7 @@ if(APPLE)
   # find_package(OpenMP) can be guieded with OpenMP_<lang>_INCLUDE_DIR.
   set(OpenMP_C_INCLUDE_DIR "${BREW_PREFIX}/opt/libomp/include")
   set(OpenMP_CXX_INCLUDE_DIR "${BREW_PREFIX}/opt/libomp/include")
-endif(APPLE)
+endif()
 
 find_package(OpenMP REQUIRED)
 
