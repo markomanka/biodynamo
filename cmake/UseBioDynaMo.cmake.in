@@ -306,6 +306,9 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 include("${BDMSYS}/share/cmake/SetCompilerFlags.cmake")
+# Projects compile with the C++ standard BioDynaMo was built with: ROOT's, when
+# ROOT comes from the environment (C++20 on conda-forge).
+set(CMAKE_CXX_STANDARD @CMAKE_CXX_STANDARD@)
 
 # -------------- function to compile tests in derived work ---------------------
 function(bdm_add_test TARGET)
