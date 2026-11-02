@@ -52,21 +52,14 @@ jobs:
     # BioDynaMo must build from the environment alone (issue #13): until the
     # build ends, the build user reaches only the loopback interface, which
     # MPI uses. A download attempt would fail the build.
-    - name: Block network access (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        for t in iptables ip6tables; do
-          sudo "$t" -I OUTPUT 1 -o lo -j ACCEPT
-          sudo "$t" -I OUTPUT 2 -m owner --uid-owner "$(id -u)" -j REJECT
-        done
-        if curl -fsS -m 10 -o /dev/null https://github.com 2>/dev/null; then
-          echo "::error::the network is still reachable"
-          exit 1
-        fi
-        echo "network access blocked for $(id -un), except the loopback interface"
-
+    # BioDynaMo must build from the environment alone (issue #13). On Linux the
+    # configure and build run in their own network namespace, where only the
+    # loopback interface is up, so a download attempt fails while the runner's
+    # own connection, outside the namespace, is untouched.
     - name: Build BioDynaMo
       run: |
+        cat > "$RUNNER_TEMP/build.sh" <<'SCRIPT'
+        set -euo pipefail
         cmake -G Ninja -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -Dparaview=ON \
@@ -79,14 +72,24 @@ jobs:
           fi
         done
         cmake --build build --parallel
-
-    - name: Restore network access (Linux)
-      if: always() && runner.os == 'Linux'
-      run: |
-        for t in iptables ip6tables; do
-          sudo "$t" -D OUTPUT -m owner --uid-owner "$(id -u)" -j REJECT || true
-          sudo "$t" -D OUTPUT -o lo -j ACCEPT || true
-        done
+        SCRIPT
+        if [ "$RUNNER_OS" != Linux ]; then
+          bash "$RUNNER_TEMP/build.sh"
+          exit 0
+        fi
+        cat > "$RUNNER_TEMP/offline.sh" <<'SCRIPT'
+        set -euo pipefail
+        ip link set lo up
+        exec setpriv --reuid="$BUILD_UID" --regid="$BUILD_GID" --init-groups bash -c '
+          if curl -fsS -m 10 -o /dev/null https://github.com 2>/dev/null; then
+            echo "::error::the network is reachable inside the namespace"
+            exit 1
+          fi
+          exec bash "$RUNNER_TEMP/build.sh"
+        '
+        SCRIPT
+        sudo --preserve-env env "PATH=$PATH" "BUILD_UID=$(id -u)" "BUILD_GID=$(id -g)" \
+          unshare --net bash "$RUNNER_TEMP/offline.sh"
 
     - name: Unit tests BioDynaMo
       working-directory: build
