@@ -4,6 +4,8 @@
 is tagged when the release criteria in [issue #13](https://github.com/markomanka/biodynamo/issues/13) are met,
 and this note is updated to match.*
 
+*Marco Manca, with Claude (Anthropic). [SKUNKWORKS.md](SKUNKWORKS.md) describes the fork and its plan.*
+
 ## In short
 
 BioDynaMo 1.06 is upstream BioDynaMo, as of 23 October 2026 (after pull request BioDynaMo/biodynamo#499),
@@ -125,6 +127,14 @@ modified files carry a notice saying so, as the licence requires.
 - **Continuous integration:** upstream's Ubuntu CI, and a new Conda CI on Ubuntu 24.04 and macOS 15 that builds
   with every dependency from conda-forge and runs the whole test suite (456 tests on Linux, 450 on macOS), the
   ParaView integration tests (on Linux through Xvfb, as upstream does), and a project built outside the tree.
+- **The build downloads nothing.** On Linux the Conda CI configures and builds inside a network namespace where
+  only the loopback interface is up, so any download attempt fails. Two things had to be fixed for this to
+  hold: OptimLib's configure script cloned Armadillo from GitLab whenever it found no Armadillo headers, so
+  Armadillo now comes from conda-forge (and OptimLib builds as C++14, which current Armadillo requires); and
+  the installation failed on a normal build because it copied a documentation folder that only exists when the
+  documentation is built.
+- **The installation is tested as such:** BioDynaMo is installed into a prefix, the build folder is moved away,
+  and the test suite and a freshly copied demo then run from the installation alone.
 - **An independent numerical check:** a model of monolayer growth, described once and implemented in both this
   BioDynaMo and PhysiCell, gave results that agree within run-to-run randomness (at most 0.35 % apart in colony
   diameter over 13 simulated days), while the model's own choices changed the outcome by about 10 %.
