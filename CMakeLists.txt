@@ -632,13 +632,30 @@ endif()
 
 # Link optimlib
 include(ExternalProject)
+# OptimLib needs Armadillo's headers, and its configure script clones Armadillo
+# from GitLab when it finds none. With dependencies from an environment,
+# Armadillo comes from there, so that the build downloads nothing; current
+# Armadillo needs C++14, which OptimLib's Makefile anticipates but leaves
+# commented out, so make overrides its C++11.
+set(OPTIM_CONFIGURE_ENV "")
+set(OPTIM_BUILD_COMMAND "")
+if(BDM_SYSTEM_DEPENDENCIES)
+  find_path(BDM_ARMADILLO_INCLUDE_DIR armadillo HINTS "$ENV{CONDA_PREFIX}/include")
+  if(NOT BDM_ARMADILLO_INCLUDE_DIR)
+    message(FATAL_ERROR "Armadillo's headers were not found in the environment. "
+                        "Install the armadillo package, which environment.yml lists.")
+  endif()
+  set(OPTIM_CONFIGURE_ENV ${CMAKE_COMMAND} -E env "ARMA_INCLUDE_PATH=${BDM_ARMADILLO_INCLUDE_DIR}")
+  set(OPTIM_BUILD_COMMAND BUILD_COMMAND make "CXX_STD=-std=c++14")
+endif()
 set(OPTIM_LIBNAME ${CMAKE_SHARED_LIBRARY_PREFIX}optim${CMAKE_SHARED_MODULE_SUFFIX})
 if(APPLE)
   ExternalProject_Add(
     optim
     URL "${CMAKE_SOURCE_DIR}/third_party/optim-18ae71.zip"
     BINARY_DIR "optim-prefix/src/optim"
-    CONFIGURE_COMMAND ./configure -o "-O3 -ffp-contract=fast -flto -DARMA_NO_DEBUG"
+    CONFIGURE_COMMAND ${OPTIM_CONFIGURE_ENV} ./configure -o "-O3 -ffp-contract=fast -flto -DARMA_NO_DEBUG"
+    ${OPTIM_BUILD_COMMAND}
     INSTALL_COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/optim-prefix/src/optim/${OPTIM_LIBNAME} ${CMAKE_INSTALL_LIBDIR}
   )
 else()
@@ -646,7 +663,8 @@ else()
     optim
     URL "${CMAKE_SOURCE_DIR}/third_party/optim-18ae71.zip"
     BINARY_DIR "optim-prefix/src/optim"
-    CONFIGURE_COMMAND ./configure -p -o "-O3 -march=native -ffp-contract=fast -flto -DARMA_NO_DEBUG -DOPTIM_USE_OMP"
+    CONFIGURE_COMMAND ${OPTIM_CONFIGURE_ENV} ./configure -p -o "-O3 -march=native -ffp-contract=fast -flto -DARMA_NO_DEBUG -DOPTIM_USE_OMP"
+    ${OPTIM_BUILD_COMMAND}
     INSTALL_COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/optim-prefix/src/optim/${OPTIM_LIBNAME} ${CMAKE_INSTALL_LIBDIR}
   )
 endif()
