@@ -45,9 +45,12 @@ Physics fixes for agents accumulating at borders run in parallel (see below). `a
   ([paraview-feedstock#342](https://github.com/conda-forge/paraview-feedstock/issues/342), fixed in build 2);
   ROOT 6.40.04 cannot include `<stdint.h>` with a macOS 15 or newer SDK
   ([root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396), open: CI and
-  [INSTALL.md](INSTALL.md) use a macOS 14 SDK meanwhile); ParaView 6.2.0 uses Abseil 20260526 without pinning it
-  ([paraview-feedstock#345](https://github.com/conda-forge/paraview-feedstock/issues/345), open:
-  `environment.yml` pins `libabseil=20260526` meanwhile).
+  [INSTALL.md](INSTALL.md) use a macOS 14 SDK meanwhile); ParaView 6.2.0 used Abseil 20260526 without pinning it
+  ([paraview-feedstock#345](https://github.com/conda-forge/paraview-feedstock/issues/345), fixed for new builds);
+  with ROOT in the environment, solvers still pick old builds, because ROOT requires an older gl2ps than the new
+  builds' VTK ([paraview-feedstock#348](https://github.com/conda-forge/paraview-feedstock/issues/348),
+  [root-feedstock#397](https://github.com/conda-forge/root-feedstock/issues/397), open: `environment.yml` pins
+  `libabseil=20260526` meanwhile).
 - **BioDynaMo's own macOS CI is retired:** its bundles depend on Homebrew's `python@3.9`, which Homebrew disabled
   on 15 October 2026. The Conda CI covers macOS (pull request #10).
 - **GPUs:** the Viskores choice affects only ParaView's accelerated filters; BioDynaMo's own CUDA and OpenCL
@@ -144,6 +147,8 @@ conda-forge and Spack.
 | `ci/maintenance` | Node.js 24 actions; no spurious Homebrew errors | Not merged; its Homebrew part is moot since the old macOS CI was retired |
 | `step1/community-deps` | Step 1: dependencies from conda-forge or Spack | Merged (pull request #8) |
 | `ci/retire-macos` | Old macOS CI retired; Abseil pinned until ParaView is rebuilt | Merged (pull request #10) |
+| `fix/out-of-tree-projects` | Projects outside the source tree: C++ standard, NUMA, Homebrew's libomp; a CI check | Merged (pull request #12) |
+| `docs/release-1.06` | [RELEASE-1.06.md](RELEASE-1.06.md): release notes and adoption steps for the consortium | Draft until the release |
 | `before-philox` | The state before the random-number switch, kept to reproduce earlier results | Reference branch |
 
 ## Installing this fork

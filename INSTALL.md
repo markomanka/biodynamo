@@ -71,11 +71,13 @@ To update the environment after `environment.yml` changes: `conda env update -f 
   `/Library/Developer/CommandLineTools/SDKs`, point `SDKROOT` at it before running BioDynaMo. Reported as
   [conda-forge/root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396).
 
-- **ParaView with Abseil 20260817 (October 2026):** conda-forge's ParaView 6.2.0 uses symbols of Abseil
-  20260526 without requiring that version, so an environment with Abseil 20260817 fails with "undefined symbol:
-  _ZN4absl..." as soon as ParaView's server-manager library is used. `environment.yml` pins
-  `libabseil=20260526` until ParaView is rebuilt
-  ([conda-forge/paraview-feedstock#345](https://github.com/conda-forge/paraview-feedstock/issues/345)).
+- **Linux, ParaView with Abseil 20260817 (November 2026):** conda-forge's current ParaView 6.2.0 build needs
+  VTK 9.7.1, which requires gl2ps 1.4.3, while ROOT still requires gl2ps 1.4.2. With ROOT in the environment,
+  solvers therefore fall back to ParaView builds 0 and 1, which use symbols of Abseil 20260526 without requiring
+  that version: with Abseil 20260817 they fail with "undefined symbol: _ZN4absl..." as soon as ParaView's
+  server-manager library is used. `environment.yml` pins `libabseil=20260526` until conda-forge rebuilds ROOT
+  for gl2ps 1.4.3 ([root-feedstock#397](https://github.com/conda-forge/root-feedstock/issues/397)) or corrects
+  the old ParaView builds ([paraview-feedstock#348](https://github.com/conda-forge/paraview-feedstock/issues/348)).
 
 ## Spack
 
