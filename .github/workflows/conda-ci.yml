@@ -49,6 +49,22 @@ jobs:
         disown -ar
         sleep 3
 
+    # BioDynaMo must build from the environment alone (issue #13): until the
+    # build ends, the build user reaches only the loopback interface, which
+    # MPI uses. A download attempt would fail the build.
+    - name: Block network access (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        for t in iptables ip6tables; do
+          sudo "$t" -I OUTPUT 1 -o lo -j ACCEPT
+          sudo "$t" -I OUTPUT 2 -m owner --uid-owner "$(id -u)" -j REJECT
+        done
+        if curl -fsS -m 10 -o /dev/null https://github.com 2>/dev/null; then
+          echo "::error::the network is still reachable"
+          exit 1
+        fi
+        echo "network access blocked for $(id -un), except the loopback interface"
+
     - name: Build BioDynaMo
       run: |
         cmake -G Ninja -B build \
@@ -63,6 +79,14 @@ jobs:
           fi
         done
         cmake --build build --parallel
+
+    - name: Restore network access (Linux)
+      if: always() && runner.os == 'Linux'
+      run: |
+        for t in iptables ip6tables; do
+          sudo "$t" -D OUTPUT -m owner --uid-owner "$(id -u)" -j REJECT || true
+          sudo "$t" -D OUTPUT -o lo -j ACCEPT || true
+        done
 
     - name: Unit tests BioDynaMo
       working-directory: build
@@ -94,3 +118,25 @@ jobs:
           if [ -n "$sdk14" ]; then export SDKROOT="$sdk14"; fi
         fi
         (cd out-of-tree && ./cell_division)
+
+    # An installation must work on its own (issue #13): install into a prefix,
+    # move the build folder away, then run the tests and a project from the
+    # installation alone.
+    - name: Install BioDynaMo, then test the installation
+      run: |
+        cmake --install build --prefix "$RUNNER_TEMP/install"
+        prefix=$(ls -d "$RUNNER_TEMP"/install/biodynamo-v*)
+        echo "installed in $prefix"
+        mv build build-moved
+        . "$prefix/bin/thisbdm.sh"
+        bdm config
+        if [ "$RUNNER_OS" = Linux ]; then export DISPLAY=:99.0; fi
+        if [ "$RUNNER_OS" = macOS ]; then
+          sdk14=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX14*.sdk 2>/dev/null | tail -1)
+          if [ -n "$sdk14" ]; then export SDKROOT="$sdk14"; fi
+        fi
+        (cd "$prefix" && bin/biodynamo-unit-tests)
+        cp -r demo/cell_division "$RUNNER_TEMP/cell_division"
+        cmake -G Ninja -S "$RUNNER_TEMP/cell_division" -B "$RUNNER_TEMP/cell_division/build" -DCMAKE_BUILD_TYPE=Release
+        cmake --build "$RUNNER_TEMP/cell_division/build"
+        (cd "$RUNNER_TEMP/cell_division/build" && ./cell_division)
