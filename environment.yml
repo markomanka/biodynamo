@@ -24,6 +24,7 @@ dependencies:
   - openmpi
   # Libraries
   - libboost-devel
+  - armadillo          # headers for OptimLib, which would otherwise clone Armadillo from GitLab
   - python >=3.11
   # Temporary: ROOT leaves BioDynaMo with the ROOT-free I/O (SKUNKWORKS.md).
   - root >=6.36
@@ -33,9 +34,9 @@ dependencies:
   # The CPU build of Viskores, which VTK uses: on machines with an NVIDIA driver, conda
   # would pick a CUDA build, whose CMake package then requires nvcc.
   - viskores=*=cpu_*
-  # Abseil 20260526: conda-forge's ParaView 6.2.0 builds use its symbols (through
-  # Protobuf's headers) without requiring that version, and Abseil 20260817 lacks
-  # them; remove once ParaView is rebuilt or pins Abseil.
+  # Abseil 20260526: with ROOT here, ParaView 6.2.0 can only be an old build, whose
+  # VTK accepts ROOT's gl2ps; those builds use Abseil 20260526 without requiring it.
+  # Remove once conda-forge/root-feedstock#397 or paraview-feedstock#348 is fixed.
   - libabseil=20260526
   # Development files that ParaView's and VTK's CMake packages look for but
   # that conda-forge does not install with them.

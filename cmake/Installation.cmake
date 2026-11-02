@@ -41,8 +41,10 @@ install(DIRECTORY ${CMAKE_BIODYNAMO_BUILD_ROOT}/demo
         USE_SOURCE_PERMISSIONS
         FILES_MATCHING PATTERN "*"
         PATTERN "*.tar.gz" EXCLUDE)
+# The documentation exists only if it was built.
 install(DIRECTORY ${CMAKE_BIODYNAMO_BUILD_ROOT}/doc
         DESTINATION ${DIRNAME}
+        OPTIONAL
         USE_SOURCE_PERMISSIONS
         FILES_MATCHING PATTERN "*"
         PATTERN "*.tar.gz" EXCLUDE)
