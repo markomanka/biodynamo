@@ -8,6 +8,9 @@ on:
   pull_request:
     branches:
       - master
+  # Started by hand, so a run can be repeated when a job fails for reasons
+  # outside the code, such as a runner that never starts.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
