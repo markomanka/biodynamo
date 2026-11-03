@@ -148,7 +148,7 @@ conda-forge and Spack.
 | `step1/community-deps` | Step 1: dependencies from conda-forge or Spack | Merged (pull request #8) |
 | `ci/retire-macos` | Old macOS CI retired; Abseil pinned until ParaView is rebuilt | Merged (pull request #10) |
 | `fix/out-of-tree-projects` | Projects outside the source tree: C++ standard, NUMA, Homebrew's libomp; a CI check | Merged (pull request #12) |
-| `docs/release-1.06` | [RELEASE-1.06.md](RELEASE-1.06.md): release notes and adoption steps for the consortium | Draft until the release |
+| `release/v1.06` | Version 1.06, BioDynaMo on community-maintained dependencies: [RELEASE-1.06.md](RELEASE-1.06.md) | Tagged `v1.06`, 2 November 2026 |
 | `before-philox` | The state before the random-number switch, kept to reproduce earlier results | Reference branch |
 
 ## Installing this fork

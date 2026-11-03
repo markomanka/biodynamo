@@ -1,8 +1,8 @@
 # BioDynaMo 1.06: on community-maintained dependencies
 
-*Release notes for the BioDynaMo consortium, to help decide whether to adopt this version. Draft: the version
-is tagged when the release criteria in [issue #13](https://github.com/markomanka/biodynamo/issues/13) are met,
-and this note is updated to match.*
+*Release notes for the BioDynaMo consortium, to help decide whether to adopt this version. Tagged `v1.06` on
+2 November 2026, once the release criteria of
+[issue #13](https://github.com/markomanka/biodynamo/issues/13) were met on Linux and macOS.*
 
 *Marco Manca, with Claude (Anthropic). [SKUNKWORKS.md](SKUNKWORKS.md) describes the fork and its plan.*
 
@@ -135,6 +135,8 @@ modified files carry a notice saying so, as the licence requires.
   documentation is built.
 - **The installation is tested as such:** BioDynaMo is installed into a prefix, the build folder is moved away,
   and the test suite and a freshly copied demo then run from the installation alone.
+- **The release commit** passed every check of the Ubuntu CI, the Conda CI on Ubuntu 24.04 and macOS 15, the
+  Singularity integration and the repository checks.
 - **An independent numerical check:** a model of monolayer growth, described once and implemented in both this
   BioDynaMo and PhysiCell, gave results that agree within run-to-run randomness (at most 0.35 % apart in colony
   diameter over 13 simulated days), while the model's own choices changed the outcome by about 10 %.
