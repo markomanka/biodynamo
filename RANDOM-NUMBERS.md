@@ -69,6 +69,34 @@ The gain would be worth having: a run reproducible from its seed alone, whatever
 number of processes it ran on. That is a stronger reproducibility guarantee than BioDynaMo has ever
 offered, and it is the main reason the generator was changed at all.
 
+## Bringing an existing model to this version
+
+Almost certainly nothing. A model that draws through BioDynaMo's `Random` (`Uniform`, `Gaussian`,
+`Poisson`, the distribution helpers, the user-defined distributions) compiles unchanged and runs. Its
+numbers differ; its code does not. None of BioDynaMo's demos or tests needed a change.
+
+Two interfaces did change, and both fail at compile time rather than silently:
+
+| If the model does this | What to do |
+| --- | --- |
+| calls `Random::SetGenerator(TRandom*)` to install its own generator | Remove the call: the generator is no longer replaceable, and `random_seed` now covers everything, including the user-defined distributions it previously bypassed |
+| defines a distribution by subclassing `DistributionRng` and overriding `SampleImpl(TRandom*)` | Change the parameter to `Random*`, and draw with that object's methods instead of ROOT's |
+
+One command tells a model author which case applies, in seconds:
+
+```bash
+grep -rnE "SetGenerator|SampleImpl" path/to/model
+```
+
+What does need attention is not code but references. **Tests that compare against stored output of a
+stochastic run will fail**, because the same seed now gives a different sequence. Those references must be
+regenerated with this version; a failure of that kind says nothing about the model.
+
+And a point worth separating from the mechanics: a model whose conclusions change when the stream changes
+was never reproducible in any useful sense, only self-consistent. Running an established model on both
+versions and comparing distributions is therefore a check on the model as much as on BioDynaMo, and a
+cheap one.
+
 ## Reproducing earlier results exactly
 
 Use the version that produced them, with the same seed and number of threads: the official BioDynaMo
