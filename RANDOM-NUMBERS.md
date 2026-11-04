@@ -40,9 +40,34 @@ runs made with the official BioDynaMo or with this fork before the switch. They 
 - **Checkpoints written before the switch** can still be restored, but the generator restarts from its
   default state (seed 4357), because the saved `TRandom3` state cannot be carried over. A run resumed from
   such a checkpoint diverges from the original run from the restore point onwards.
-- **Number of threads**: as before, every thread has its own generator, so results depend on the number of
-  threads and on how work is divided among them. A counter-based generator makes it possible to give each
-  agent its own stream, which would remove that dependency; this is not implemented yet.
+- **Number of threads**: as before, every thread has its own generator (`Simulation::GetRandom()` returns
+  `random_[omp_get_thread_num()]`), so results depend on the number of threads and on how work is divided
+  among them. A counter-based generator makes it possible to give each agent its own stream, which would
+  remove that dependency; this is not implemented yet. See below.
+
+A model can be invariant even though the engine is not. If a model draws its random numbers in an order it
+fixes itself, for example by collecting the agents that will draw, sorting them by a stable identifier and
+drawing for them in that order, its results do not depend on the number of threads. That costs a sort and
+is worth it wherever runs must be compared across machines or thread counts.
+
+## Per-agent streams: what would remove the dependency
+
+Philox computes its output from a key and a counter rather than from a state carried forward, so a draw can
+be addressed instead of being taken in turn: draw *n* for agent *a* at step *s* can be a pure function of
+the seed and those three numbers. The stream then follows the agent rather than the thread, and results no
+longer depend on the number of threads, on how work is divided among them, or, in a distributed run, on
+which process owns the agent.
+
+What that needs is a key that is stable across threads, processes and restarts. BioDynaMo's `AgentUid`
+today is an index with a reuse counter, unique within one process; two agents on different processes, or an
+agent before and after a reuse, can share a key. A suitable key is an identifier unique for the whole run
+and never reused, which is what the shared I/O library planned in [SKUNKWORKS.md](SKUNKWORKS.md) defines for
+its own purposes. So the ingredient is already on the way, and the change belongs with step 3, where that
+library is brought in, rather than before it.
+
+The gain would be worth having: a run reproducible from its seed alone, whatever machine, thread count or
+number of processes it ran on. That is a stronger reproducibility guarantee than BioDynaMo has ever
+offered, and it is the main reason the generator was changed at all.
 
 ## Reproducing earlier results exactly
 
