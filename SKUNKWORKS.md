@@ -67,7 +67,7 @@ Physics fixes for agents accumulating at borders run in parallel (see below). `a
 | Who writes visualization files | `abm-io`, as VTKHDF from the generated field tables |
 | Dependency ecosystem | conda-forge by default, Spack for HPC clusters |
 | ParaView | conda-forge's ParaView 6.2 (legacy Catalyst) now; Catalyst 2 later; replaceable |
-| Plugin loading | Stays with ROOT until step 3: with `dlopen`, Cling's agent export failed on macOS |
+| Plugin loading | Stays with ROOT until step 3, with the run-time code generation it depends on (see below) |
 
 ## Where ROOT is used today
 
@@ -98,6 +98,26 @@ conda-forge and Spack.
 | Cling's run-time code generation (agent export) | Generated field tables | Step 3 |
 | Plugin loading | `dlopen` | Step 3, after the field tables |
 | Building | ROOT, `rootcling` and the bundle downloads leave CMake | Step 3 |
+
+### Why plugin loading cannot leave ROOT before the field tables
+
+This was tried and reverted, and the reason is a dependency rather than a preference, so it is recorded here
+rather than only in the history (commit `1a2fb970`).
+
+The ParaView agent export compiles code at run time with Cling, in `JitForEachDataMemberFunctor`. ROOT's
+plugin manager loads the adaptor with `gSystem->Load`, which tells Cling about the library, and creates the
+adaptor by interpreting its constructor, which makes Cling load the adaptor's declarations. A bare `dlopen`
+does neither. On Linux Cling still found what it needed; on macOS it did not: with the adaptors opened by
+`dlopen`, `FLAKY_ParaviewIntegrationTest.ExportAgents_*` died on every attempt on macOS 26 with hundreds of
+Cling errors ("expected expression"), and a macOS 15 job hung until the six-hour limit. Through the plugin
+manager the same tests pass in 8 to 25 seconds with no Cling errors.
+
+So the two leave ROOT together, in step 3: once the generated field tables replace the run-time code
+generation, nothing needs Cling to know about the adaptor, and `dlopen` is enough. The attempt left no code
+behind; `shared_library.h` and its test were removed with the revert.
+
+Found again by Aravind Raju during his review of v1.06, from the source rather than from this document,
+which is why the reasoning now lives here.
 
 ## Visualization
 
