@@ -26,7 +26,7 @@ open in-situ interfaces, so that ParaView can be replaced if a competitive inter
 | --- | --- | --- | --- |
 | 1 · Community dependencies | `BDM_SYSTEM_DEPENDENCIES` option; `environment.yml`; ParaView adaptor ported to ParaView 6.2 and VTK 9.7; Conda CI on Linux and macOS; [INSTALL.md](INSTALL.md) | No Python 3.9, Qt 5 or CERN downloads. ROOT stays only as a bridge until step 3 | Done (pull request #8) |
 | 2 · ROOT-free features | Plotting and statistics (`TimeSeries`, `LineGraph`) export their data, with plots from Vega-Lite specifications in notebooks or matplotlib; notebooks on the `xeus-cpp` kernel; user-defined distributions without `TF1`/`TF2`/`TF3`; the ROOT geometry viewer removed; the remaining `TMath`, `TEnv` and `TSystem`; demos | No user-facing feature needs ROOT | Planned |
-| 3 · I/O and reflection | `abm-gen` (a Clang LibTooling generator, replacing `rootcling`) and `abm-io`: HDF5 checkpoints, JSON parameters, MPI exchange, a type registry, and field tables replacing Cling's run-time code generation; then plugin loading through `dlopen`; then `rootcling` and ROOT leave the build; `abm-io` is released and gets a PhysiCell adapter | ROOT gone completely | Planned |
+| 3 · I/O and reflection | `abm-gen` (Python with Clang's parser, `libclang`, replacing `rootcling`) and `abm-io`: HDF5 checkpoints, JSON parameters, MPI exchange, a type registry, and field tables replacing Cling's run-time code generation; then plugin loading through `dlopen`; then `rootcling` and ROOT leave the build; `abm-io` is released and gets a PhysiCell adapter | ROOT gone completely | Planned |
 | 4 · Visualization independence | `abm-io` writes VTKHDF (HDF5-based VTK files, read by ParaView and PyVista) from the field tables, without linking VTK; Catalyst 2 for in-situ use; evaluation of alternatives to ParaView | ParaView optional and replaceable | Planned |
 
 Physics fixes for agents accumulating at borders run in parallel (see below). `abm-io`'s
@@ -63,7 +63,7 @@ Physics fixes for agents accumulating at borders run in parallel (see below). `a
 | --- | --- |
 | Scope of the ROOT removal | Everything, including notebooks, statistics, plotting and visualization |
 | Random numbers | Philox4x64-10; results stay reproducible from the seed, but differ from ROOT's (see [RANDOM-NUMBERS.md](RANDOM-NUMBERS.md)) |
-| File container | HDF5, through HighFive; ADIOS2 only if HPC users need it |
+| File container | HDF5; whether through HighFive or HDF5's C API is decided by tests and measurements in `abm-io`; ADIOS2 only if HPC users need it |
 | Who writes visualization files | `abm-io`, as VTKHDF from the generated field tables |
 | Dependency ecosystem | conda-forge by default, Spack for HPC clusters |
 | ParaView | conda-forge's ParaView 6.2 (legacy Catalyst) now; Catalyst 2 later; replaceable |
@@ -168,7 +168,7 @@ which is why the reasoning now lives here.
 | `step1/community-deps` | Step 1: dependencies from conda-forge or Spack | Merged (pull request #8) |
 | `ci/retire-macos` | Old macOS CI retired; Abseil pinned until ParaView is rebuilt | Merged (pull request #10) |
 | `fix/out-of-tree-projects` | Projects outside the source tree: C++ standard, NUMA, Homebrew's libomp; a CI check | Merged (pull request #12) |
-| `docs/release-1.06` | [RELEASE-1.06.md](RELEASE-1.06.md): release notes and adoption steps for the consortium | Draft until the release |
+| `docs/release-1.06` | [RELEASE-1.06.md](RELEASE-1.06.md): release notes and adoption steps for the consortium | Merged (pull request #15); version 1.06 tagged as `v1.06` (pull request #18) |
 | `before-philox` | The state before the random-number switch, kept to reproduce earlier results | Reference branch |
 
 ## Installing this fork

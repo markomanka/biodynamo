@@ -1,8 +1,8 @@
 # BioDynaMo 1.06: on community-maintained dependencies
 
-*Release notes for the BioDynaMo consortium, to help decide whether to adopt this version. Draft: the version
-is tagged when the release criteria in [issue #13](https://github.com/markomanka/biodynamo/issues/13) are met,
-and this note is updated to match.*
+*Release notes for the BioDynaMo consortium, to help decide whether to adopt this version. The version is
+tagged `v1.06`; the release criteria it was checked against are in
+[issue #13](https://github.com/markomanka/biodynamo/issues/13).*
 
 *Marco Manca, with Claude (Anthropic). [SKUNKWORKS.md](SKUNKWORKS.md) describes the fork and its plan.*
 
