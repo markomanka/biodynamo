@@ -78,4 +78,52 @@ TEST(MathUtilTest, MSE) {
   EXPECT_NEAR(29.0, result, abs_error<real_t>::value);
 }
 
+// The two densities below replaced ROOT::Math::normal_pdf and
+// ROOT::Math::poisson_pdf; the reference values are computed independently.
+// Added after Aravind Raju's review of v1.06 asked for their edge cases.
+
+TEST(MathUtilTest, NormalPdf) {
+  const real_t tol = static_cast<real_t>(1e-6);
+  // The standard normal at its mean: 1 / sqrt(2 pi).
+  EXPECT_NEAR(0.3989422804014327, NormalPdf(0, 1, 0), tol);
+  // x = 1, sigma = 2, mean = 3: one standard deviation below the mean.
+  EXPECT_NEAR(0.12098536225957168, NormalPdf(1, 2, 3), tol);
+  // Symmetric about the mean.
+  EXPECT_NEAR(NormalPdf(1, 2, 3), NormalPdf(5, 2, 3), tol);
+  // The sign of sigma does not matter, as in ROOT's definition.
+  EXPECT_NEAR(NormalPdf(1, 2, 3), NormalPdf(1, -2, 3), tol);
+  // Far in the tail the density is tiny and still not negative.
+  EXPECT_GE(NormalPdf(40, 1, 0), 0);
+  EXPECT_LT(NormalPdf(40, 1, 0), tol);
+  // A narrower distribution is taller at its mean.
+  EXPECT_GT(NormalPdf(0, static_cast<real_t>(0.5), 0), NormalPdf(0, 1, 0));
+}
+
+TEST(MathUtilTest, PoissonPdf) {
+  const real_t tol = static_cast<real_t>(1e-6);
+  const real_t mu = static_cast<real_t>(2.5);
+  EXPECT_NEAR(0.0820849986238988, PoissonPdf(0, mu), tol);  // exp(-mu)
+  EXPECT_NEAR(0.21376301724973645, PoissonPdf(3, mu), tol);
+  // The number of events is floor(x).
+  EXPECT_NEAR(PoissonPdf(3, mu), PoissonPdf(static_cast<real_t>(3.9), mu), tol);
+  // No probability for a negative count, where ROOT's call was undefined.
+  EXPECT_EQ(0, PoissonPdf(-1, mu));
+  EXPECT_EQ(0, PoissonPdf(static_cast<real_t>(-0.5), mu));
+  // With mu = 0 nothing ever happens: all the probability is at zero events.
+  EXPECT_EQ(1, PoissonPdf(0, 0));
+  EXPECT_EQ(0, PoissonPdf(4, 0));
+}
+
+TEST(MathUtilTest, PoissonPdfSumsToOneAndDoesNotOverflow) {
+  const real_t mu = static_cast<real_t>(2.5);
+  real_t sum = 0;
+  for (int n = 0; n < 60; ++n) {
+    sum += PoissonPdf(static_cast<real_t>(n), mu);
+  }
+  EXPECT_NEAR(1, sum, static_cast<real_t>(1e-5));
+  // 200! overflows a double if computed directly; the logarithmic form does
+  // not. The value is the probability of 200 events when 190 are expected.
+  EXPECT_NEAR(0.02177108076424367, PoissonPdf(200, 190), static_cast<real_t>(1e-4));
+}
+
 }  // namespace bdm
