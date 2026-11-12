@@ -68,7 +68,11 @@ To update the environment after `environment.yml` changes: `conda env update -f 
   'stdarg.h' not found"): its module map expects `stdarg.h` among the SDK's headers, which these SDKs no longer
   ship. With a macOS 14 SDK it works. BioDynaMo features that make ROOT's interpreter read headers while running,
   such as the ParaView export, fail. If a macOS 14 SDK is installed, for instance under
-  `/Library/Developer/CommandLineTools/SDKs`, point `SDKROOT` at it before running BioDynaMo. Reported as
+  `/Library/Developer/CommandLineTools/SDKs`, point `SDKROOT` at it before running BioDynaMo. Another SDK of
+  version 15 or 26 does not help: it has to be a 14. `thisbdm.sh` checks the active SDK when it is sourced
+  and, if it is too new, says so and prints the `export SDKROOT=...` line for the 14 SDK it finds, or says
+  that none is installed. It does not set `SDKROOT` itself, because that variable also steers compilers.
+  Reported as
   [conda-forge/root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396).
 
 - **Linux, ParaView with Abseil 20260817 (November 2026):** conda-forge's current ParaView 6.2.0 build needs

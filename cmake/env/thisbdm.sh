@@ -471,6 +471,32 @@ _source_thisbdm()
     ROOT_INCLUDE_PATH="${BDMSYS}/include${ROOT_INCLUDE_PATH:+:$ROOT_INCLUDE_PATH}"
     export ROOT_INCLUDE_PATH
   fi
+  # conda-forge's ROOT 6.40.04 cannot build its module map with a macOS SDK of
+  # version 15 or newer (INSTALL.md, "Known issues"): whatever makes ROOT's
+  # interpreter read headers at run time, such as the ParaView export, then
+  # fails with "header 'stdarg.h' not found". A macOS 14 SDK works. Say so
+  # here, with the command, rather than leave it to be found from a failing
+  # test. SDKROOT is not set for the user: it also steers compilers.
+  if [ "$system_deps" = 'ON' ] && [ "$(uname)" = 'Darwin' ]; then
+    local sdk_version
+    sdk_version=$(xcrun --show-sdk-version 2>/dev/null)
+    case "${sdk_version%%.*}" in
+      ''|[1-9]|1[0-4]) ;;
+      *)
+        local sdk14
+        sdk14=$(find /Library/Developer/CommandLineTools/SDKs -maxdepth 1 -name 'MacOSX14*.sdk' 2>/dev/null | sort | tail -n 1)
+        _bdm_warn "[WARN] The active macOS SDK is ${sdk_version}. ROOT's interpreter cannot read system headers"
+        _bdm_warn "       with an SDK of version 15 or newer, so the ParaView export will fail"
+        _bdm_warn "       (\"header 'stdarg.h' not found\"). See \"Known issues\" in INSTALL.md."
+        if [ -n "$sdk14" ]; then
+          _bdm_warn "       A macOS 14 SDK is installed. Before running a simulation:"
+          _bdm_warn "         export SDKROOT=$sdk14"
+        else
+          _bdm_warn "       No macOS 14 SDK was found under /Library/Developer/CommandLineTools/SDKs."
+        fi
+        ;;
+    esac
+  fi
   if [ "$with_paraview" = 'ON' ] && [ "$system_deps" != 'ON' ]; then
      if [ -z "$BDM_CUSTOM_PV" ]; then
        if [ -z "${ParaView_DIR}" ]; then
