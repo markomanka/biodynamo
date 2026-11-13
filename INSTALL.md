@@ -77,8 +77,9 @@ To update the environment after `environment.yml` changes: `conda env update -f 
   Until the export no longer uses the interpreter (step 3 of `SKUNKWORKS.md`), the ParaView export on macOS is
   supported only with a macOS 14 SDK; without one it does not work. The macOS CI passes because its runner image
   still ships a macOS 14 SDK, and each run's summary page says which SDK it used. In-situ visualization is not
-  supported on macOS, as in upstream. ROOT's notebook kernel, which also interprets code, is likely affected
-  too and has not been tested on macOS.
+  supported on macOS, as in upstream. ROOT's notebook kernel, which also interprets code, is very likely
+  affected too and has not been tested on macOS; step 2 of `SKUNKWORKS.md` replaces it with the `xeus-cpp`
+  kernel.
 
 - **Linux, ParaView with Abseil 20260817 (November 2026):** conda-forge's current ParaView 6.2.0 build needs
   VTK 9.7.1, which requires gl2ps 1.4.3, while ROOT still requires gl2ps 1.4.2. With ROOT in the environment,

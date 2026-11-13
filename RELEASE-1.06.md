@@ -128,8 +128,10 @@ modified files carry a notice saying so, as the licence requires.
   selects; nothing guarantees later images keep it, and each run's summary now says which SDK was used. In-situ
   visualization is not supported on macOS, as in upstream, whose in-situ tests were already disabled there. Within
   the simulator, the export is the only code that the interpreter compiles while running, and the failures reported
-  on a Mac with SDK 15 were the ParaView tests; ROOT's notebook kernel interprets every cell and is likely affected
-  in the same way, but has not been tested on macOS.
+  on a Mac with SDK 15 were the ParaView tests; ROOT's notebook kernel, which v1.06's notebooks use, interprets
+  every cell with the same interpreter and is very likely affected in the same way; it has not been tested on
+  macOS. The two go away at different steps: the notebooks move to the xeus-cpp kernel in step 2, and the export to
+  field tables generated at build time in step 3.
 - **Spack** is supported by the same CMake option but not yet tested in CI.
 - **GPUs:** BioDynaMo's CUDA and OpenCL options are untouched but have not been tested with the new toolchain.
 
