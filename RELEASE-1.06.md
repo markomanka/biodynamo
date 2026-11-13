@@ -119,6 +119,17 @@ modified files carry a notice saying so, as the licence requires.
 - **macOS, ROOT's interpreter with a macOS 15 or newer SDK.** conda-forge's ROOT 6.40.04 cannot include
   `<stdint.h>` with those SDKs ([root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396));
   INSTALL.md shows how to point ROOT at a macOS 14 SDK meanwhile.
+
+  *Added after the release (November 2026), to state what this means:* the ParaView export makes ROOT's interpreter
+  read system headers while a simulation runs, so on macOS it works only with a macOS 14 SDK installed, and is
+  otherwise unsupported until the export stops using the interpreter (step 3 of SKUNKWORKS.md). Current versions of
+  macOS and Xcode come with SDK 15 or 26 and no 14 SDK, so this is not a validated feature on current macOS. The
+  macOS CI passes because its runner image still ships Apple's macOS 14.5 SDK beside the active 15.5, which the CI
+  selects; nothing guarantees later images keep it, and each run's summary now says which SDK was used. In-situ
+  visualization is not supported on macOS, as in upstream, whose in-situ tests were already disabled there. Within
+  the simulator, the export is the only code that the interpreter compiles while running, and the failures reported
+  on a Mac with SDK 15 were the ParaView tests; ROOT's notebook kernel interprets every cell and is likely affected
+  in the same way, but has not been tested on macOS.
 - **Spack** is supported by the same CMake option but not yet tested in CI.
 - **GPUs:** BioDynaMo's CUDA and OpenCL options are untouched but have not been tested with the new toolchain.
 
@@ -127,6 +138,8 @@ modified files carry a notice saying so, as the licence requires.
 - **Continuous integration:** upstream's Ubuntu CI, and a new Conda CI on Ubuntu 24.04 and macOS 15 that builds
   with every dependency from conda-forge and runs the whole test suite (456 tests on Linux, 450 on macOS), the
   ParaView integration tests (on Linux through Xvfb, as upstream does), and a project built outside the tree.
+  On macOS the ParaView tests are the seven export tests, run with the runner's macOS 14 SDK (see "Known
+  issues"); the in-situ tests do not run there.
 - **The build downloads nothing.** On Linux the Conda CI configures and builds inside a network namespace where
   only the loopback interface is up, so any download attempt fails. Two things had to be fixed for this to
   hold: OptimLib's configure script cloned Armadillo from GitLab whenever it found no Armadillo headers, so
