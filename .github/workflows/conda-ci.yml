@@ -133,6 +133,31 @@ jobs:
         fi
         ninja run-unit-tests
 
+    # The step above points ROOT's interpreter at the runner's macOS 14 SDK.
+    # Current Macs have no such SDK, so run the ParaView tests again with the
+    # active SDK, as users would. Until the export stops compiling code with
+    # ROOT's interpreter they are expected to fail, so the step is allowed to;
+    # its log shows which call needs the interpreter. Once they pass,
+    # continue-on-error goes and the step guards against the dependency
+    # coming back.
+    - name: ParaView tests with the active macOS SDK
+      if: runner.os == 'macOS'
+      continue-on-error: true
+      working-directory: build
+      run: |
+        . bin/thisbdm.sh
+        unset SDKROOT
+        active=$(xcrun --show-sdk-version)
+        echo "Active macOS SDK: $active; SDKROOT is not set"
+        if bin/biodynamo-unit-tests --gtest_filter='*Paraview*'; then
+          echo "**ParaView tests with the active SDK ($active):** passed." >> "$GITHUB_STEP_SUMMARY"
+        else
+          rc=$?
+          echo "::warning title=ParaView with the active SDK::The ParaView tests fail with the active macOS SDK $active, without a macOS 14 SDK (INSTALL.md, Known issues). Expected until the export stops using ROOT's interpreter."
+          echo "**ParaView tests with the active SDK ($active):** failed, as expected for now." >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+        fi
+
     - name: Build and run a project outside BioDynaMo's tree
       run: |
         . build/bin/thisbdm.sh
