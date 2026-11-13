@@ -95,7 +95,7 @@ conda-forge and Spack.
 | Notebooks | The `xeus-cpp` kernel (conda-forge) instead of ROOT's; PyVista for 3D views | Step 2 |
 | ROOT geometry viewer | Removed; ParaView and the file export cover its uses | Step 2 |
 | Reflection, checkpoints, parameter JSON, MPI messages | `abm-gen` and `abm-io`, with HDF5 files and nlohmann/json | Step 3 |
-| Cling's run-time code generation (agent export) | Generated field tables | Step 3 |
+| Cling's run-time code generation (agent export) | Generated field tables, which also end the ParaView export's need for a macOS 14 SDK | Step 3 |
 | Plugin loading | `dlopen` | Step 3, after the field tables |
 | Building | ROOT, `rootcling` and the bundle downloads leave CMake | Step 3 |
 
