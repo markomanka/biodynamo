@@ -94,6 +94,30 @@ jobs:
         sudo --preserve-env env "PATH=$PATH" "BUILD_UID=$(id -u)" "BUILD_GID=$(id -g)" \
           unshare --net bash "$RUNNER_TEMP/offline.sh"
 
+    # The macOS tests pass only if the runner image still ships a macOS 14 SDK,
+    # which the steps below select for ROOT's interpreter (INSTALL.md, "Known
+    # issues"). Say which SDK that is, or that there is none, on the run's
+    # summary page, so that a passing job is not read as working with the
+    # active SDK, and a failing one is not mistaken for a fault in BioDynaMo.
+    # The step does not fail the job: the tests that need the SDK do.
+    - name: Report the macOS SDK for ROOT's interpreter
+      if: runner.os == 'macOS'
+      run: |
+        active=$(xcrun --show-sdk-version)
+        echo "Active macOS SDK: $active ($(xcrun --show-sdk-path))"
+        echo "SDKs under the Command Line Tools:"
+        ls -la /Library/Developer/CommandLineTools/SDKs || true
+        sdk14=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX14*.sdk 2>/dev/null | tail -1)
+        if [ -n "$sdk14" ]; then
+          resolved=$(cd "$sdk14" && pwd -P)
+          msg="The active SDK is $active; ROOT's interpreter uses $sdk14 ($resolved). The macOS tests pass only while the runner image ships a macOS 14 SDK (INSTALL.md, Known issues)."
+          echo "::notice title=macOS SDK::$msg"
+        else
+          msg="The active SDK is $active and this runner image has no macOS 14 SDK. conda-forge's ROOT 6.40.04 cannot read system headers with SDK 15 or newer, so the ParaView export tests will fail with \"header 'stdarg.h' not found\" (INSTALL.md, Known issues; conda-forge/root-feedstock#396)."
+          echo "::error title=macOS SDK::$msg"
+        fi
+        echo "**macOS SDK.** $msg" >> "$GITHUB_STEP_SUMMARY"
+
     - name: Unit tests BioDynaMo
       working-directory: build
       run: |
