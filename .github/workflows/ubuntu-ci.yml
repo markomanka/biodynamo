@@ -19,7 +19,7 @@ jobs:
 
     steps:
     - name: Checkout BioDynaMo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
@@ -70,7 +70,7 @@ jobs:
         echo "OSVERS=$ID-$VERSION" >> $GITHUB_ENV
 
     - name: Cache pyenv
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: pyenv-cache
       with:
         path: ~/.pyenv
@@ -93,7 +93,7 @@ jobs:
       run: SILENT_INSTALL=1 ./prerequisites.sh required
 
     - name: Cache Third Party Packages
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: build/third_party
         key: ${{ env.OSVERS }}-third-party-${{ hashFiles('cmake/external/SHA256Digests.cmake') }}
