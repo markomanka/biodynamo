@@ -170,21 +170,27 @@ jobs:
         cmake -G Ninja -S "$RUNNER_TEMP/cell_division" -B "$RUNNER_TEMP/cell_division/build" -DCMAKE_BUILD_TYPE=Release
         cmake --build "$RUNNER_TEMP/cell_division/build"
         (cd "$RUNNER_TEMP/cell_division/build" && ./cell_division)
+        # Once more with the ParaView export: this program links only
+        # libbiodynamo, so the adaptor library is loaded at run time.
+        (cd "$RUNNER_TEMP/cell_division/build" &&
+          ./cell_division --inline-config '{ "bdm::Param": { "export_visualization": true, "visualization_interval": 50, "visualize_agents": { "Cell": [] } } }' &&
+          ls output/*/Cell-*.pvtu)
 
-    # The test steps point ROOT's interpreter at the runner's macOS 14 SDK.
-    # Current Macs have no such SDK, so run the ParaView tests once more, from
-    # the installation, with the active SDK, as users would. Until the export
-    # and the adaptor stop needing ROOT's interpreter they fail, so the step is
-    # allowed to; each test runs in its own process, so that one crash does
-    # not hide the others, and the summary lists which pass.
+    # The test steps above point ROOT's interpreter at the runner's macOS 14
+    # SDK. Current Macs have no such SDK, so run the ParaView tests once more,
+    # from the installation, with the active SDK, as users would, and export
+    # from a project outside the tree. Neither the adaptor nor the export uses
+    # ROOT's interpreter any more, so this step must pass; it fails if that
+    # dependency comes back. Each test runs in its own process, so that one
+    # crash does not hide the others, and the summary lists which pass.
     #
-    # This step must stay last. With SDK 15 or newer, ROOT's interpreter
-    # rebuilds a module file inside the environment (for example
-    # lib/_Builtin_stdint.pcm) and leaves it broken; any later run, even with
-    # the 14 SDK, then fails. The step lists the module files it changed.
+    # This step must stay last. If ROOT's interpreter does parse headers with
+    # SDK 15 or newer, it rebuilds a module file inside the environment (for
+    # example lib/_Builtin_stdint.pcm) and leaves it broken; any later run,
+    # even with the 14 SDK, then fails. The step lists the module files that
+    # changed; none should.
     - name: ParaView tests with the active macOS SDK
       if: runner.os == 'macOS'
-      continue-on-error: true
       run: |
         prefix=$(ls -d "$RUNNER_TEMP"/install/biodynamo-v*)
         . "$prefix/bin/thisbdm.sh"
@@ -211,6 +217,16 @@ jobs:
           fi
           echo "::endgroup::"
         done
+        echo "::group::export from a project outside the tree"
+        if (cd "$RUNNER_TEMP/cell_division/build" && rm -rf output &&
+          ./cell_division --inline-config '{ "bdm::Param": { "export_visualization": true, "visualization_interval": 50, "visualize_agents": { "Cell": [] } } }' &&
+          ls output/*/Cell-*.pvtu); then
+          passed="$passed cell_division-export"
+        else
+          rc=$?
+          failed="$failed cell_division-export (exit $rc)"
+        fi
+        echo "::endgroup::"
         changed=$(find "$CONDA_PREFIX" -name '*.pcm' -newer "$marker" | sort)
         {
           echo "**ParaView tests with the active SDK ($active), from the installation**"
@@ -227,6 +243,6 @@ jobs:
         echo "module files written into the environment:"
         echo "${changed:-none}"
         if [ -n "$failed" ]; then
-          echo "::warning title=ParaView with the active SDK::With the active macOS SDK $active and no macOS 14 SDK, these ParaView tests fail:$failed. Expected until the export and the adaptor stop using ROOT's interpreter."
+          echo "::error title=ParaView with the active SDK::With the active macOS SDK $active and no macOS 14 SDK, these fail:$failed. The ParaView export must not need ROOT's interpreter."
           exit 1
         fi
