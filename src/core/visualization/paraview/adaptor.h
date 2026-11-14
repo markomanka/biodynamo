@@ -11,6 +11,9 @@
 // regarding copyright ownership.
 //
 // -----------------------------------------------------------------------------
+//
+// Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+// (https://github.com/markomanka/biodynamo); see its git history.
 
 #ifndef CORE_VISUALIZATION_PARAVIEW_ADAPTOR_H_
 #define CORE_VISUALIZATION_PARAVIEW_ADAPTOR_H_
@@ -46,6 +49,10 @@ class ParaviewAdaptor : private VisualizationAdaptor {
 
   /// Visualize one timestep based on the configuration in `Param`
   void Visualize() override;
+
+  /// Creates a ParaviewAdaptor for `VisualizationAdaptor::Create`. A member,
+  /// because the base class is private.
+  static VisualizationAdaptor* NewAdaptor();
 
   struct ParaviewImpl;
 

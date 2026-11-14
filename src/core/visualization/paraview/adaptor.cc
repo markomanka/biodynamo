@@ -62,6 +62,25 @@ struct ParaviewAdaptor::ParaviewImpl {
 std::atomic<uint64_t> ParaviewAdaptor::counter_;
 
 // ----------------------------------------------------------------------------
+VisualizationAdaptor* ParaviewAdaptor::NewAdaptor() {
+  return new ParaviewAdaptor();
+}
+
+namespace {
+
+// Runs when this library is loaded: makes
+// VisualizationAdaptor::Create("paraview") create a ParaviewAdaptor, without
+// ROOT's plugin manager and therefore without ROOT's interpreter.
+struct RegisterParaviewAdaptor {
+  RegisterParaviewAdaptor() {
+    VisualizationAdaptor::Register("paraview", &ParaviewAdaptor::NewAdaptor);
+  }
+};
+const RegisterParaviewAdaptor kRegisterParaviewAdaptor;
+
+}  // namespace
+
+// ----------------------------------------------------------------------------
 ParaviewAdaptor::ParaviewAdaptor() {
   counter_++;
   impl_ = std::unique_ptr<ParaviewAdaptor::ParaviewImpl>(
@@ -335,6 +354,8 @@ std::string ParaviewAdaptor::BuildPythonScriptString(
 namespace bdm {
 
 ParaviewAdaptor::ParaviewAdaptor() {}
+
+VisualizationAdaptor* ParaviewAdaptor::NewAdaptor() { return nullptr; }
 
 void ParaviewAdaptor::Visualize() {}
 

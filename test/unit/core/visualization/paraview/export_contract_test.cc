@@ -275,6 +275,26 @@ TEST(ParaviewExportContractTest, FewerAgentsThanThreads) {
   CheckExport(Param::MappedDataArrayMode::kZeroCopy, 1);
 }
 
+// A data member of a type the export cannot represent stops the simulation
+// with a message that names the member, instead of exporting something wrong.
+TEST(ParaviewExportContractDeathTest, UnsupportedFieldTypeIsReported) {
+  ASSERT_DEATH(
+      {
+        auto set_param = [](Param* param) {
+          param->remove_output_dir_contents = true;
+          param->export_visualization = true;
+          param->insitu_visualization = false;
+          param->visualization_export_generate_pvsm = false;
+          param->visualize_agents.insert(
+              {"UnsupportedFieldAgent", {"bool_field_"}});
+        };
+        Simulation simulation("ExportContractTest_Unsupported", set_param);
+        simulation.GetResourceManager()->AddAgent(new UnsupportedFieldAgent());
+        (*simulation.GetScheduler()->GetOps("visualize")[0])();
+      },
+      "bool_field_.*cannot be visualized");
+}
+
 }  // namespace export_contract_test_internal
 }  // namespace bdm
 
