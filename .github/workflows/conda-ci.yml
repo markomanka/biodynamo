@@ -170,3 +170,63 @@ jobs:
         cmake -G Ninja -S "$RUNNER_TEMP/cell_division" -B "$RUNNER_TEMP/cell_division/build" -DCMAKE_BUILD_TYPE=Release
         cmake --build "$RUNNER_TEMP/cell_division/build"
         (cd "$RUNNER_TEMP/cell_division/build" && ./cell_division)
+
+    # The test steps point ROOT's interpreter at the runner's macOS 14 SDK.
+    # Current Macs have no such SDK, so run the ParaView tests once more, from
+    # the installation, with the active SDK, as users would. Until the export
+    # and the adaptor stop needing ROOT's interpreter they fail, so the step is
+    # allowed to; each test runs in its own process, so that one crash does
+    # not hide the others, and the summary lists which pass.
+    #
+    # This step must stay last. With SDK 15 or newer, ROOT's interpreter
+    # rebuilds a module file inside the environment (for example
+    # lib/_Builtin_stdint.pcm) and leaves it broken; any later run, even with
+    # the 14 SDK, then fails. The step lists the module files it changed.
+    - name: ParaView tests with the active macOS SDK
+      if: runner.os == 'macOS'
+      continue-on-error: true
+      run: |
+        prefix=$(ls -d "$RUNNER_TEMP"/install/biodynamo-v*)
+        . "$prefix/bin/thisbdm.sh"
+        unset SDKROOT
+        active=$(xcrun --show-sdk-version)
+        echo "Active macOS SDK: $active; SDKROOT is not set"
+        marker=$(mktemp)
+        cd "$prefix"
+        tests=$(bin/biodynamo-unit-tests --gtest_list_tests --gtest_filter='*Paraview*' |
+          awk '/^[^ ]/ { suite = $1 } /^  / { print suite $1 }')
+        if [ -z "$tests" ]; then
+          echo "::error::no ParaView tests found in the installation"
+          exit 1
+        fi
+        passed=""
+        failed=""
+        for t in $tests; do
+          echo "::group::$t"
+          if bin/biodynamo-unit-tests --gtest_filter="$t"; then
+            passed="$passed $t"
+          else
+            rc=$?
+            failed="$failed $t (exit $rc)"
+          fi
+          echo "::endgroup::"
+        done
+        changed=$(find "$CONDA_PREFIX" -name '*.pcm' -newer "$marker" | sort)
+        {
+          echo "**ParaView tests with the active SDK ($active), from the installation**"
+          echo
+          echo "Passed:${passed:- none}"
+          echo
+          echo "Failed:${failed:- none}"
+          echo
+          echo "Module files ROOT wrote into the environment during this step:"
+          echo "${changed:-none}" | sed 's/^/    /'
+        } >> "$GITHUB_STEP_SUMMARY"
+        echo "passed:${passed:- none}"
+        echo "failed:${failed:- none}"
+        echo "module files written into the environment:"
+        echo "${changed:-none}"
+        if [ -n "$failed" ]; then
+          echo "::warning title=ParaView with the active SDK::With the active macOS SDK $active and no macOS 14 SDK, these ParaView tests fail:$failed. Expected until the export and the adaptor stop using ROOT's interpreter."
+          exit 1
+        fi
