@@ -25,7 +25,7 @@ jobs:
     steps:
     # The dependency step needs the repository's package list.
     - name: Checkout BioDynaMo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
@@ -41,7 +41,7 @@ jobs:
         brew install $(cat util/installation/osx/package_list_required) libgit2 boost
 
     # - name: Cache Third Party Packages
-    #   uses: actions/cache@v4
+    #   uses: actions/cache@v5
     #   with:
     #     path: build/third_party
     #     key: ${{ runner.os }}-third-party-${{ hashFiles('cmake/external/SHA256Digests.cmake') }}
