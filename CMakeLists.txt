@@ -673,6 +673,8 @@ set_property(TARGET liboptim PROPERTY IMPORTED_LOCATION ${CMAKE_INSTALL_LIBDIR}/
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/optim-prefix/src/optim/include)
 link_directories(${CMAKE_INSTALL_LIBDIR})
 set(BDM_REQUIRED_LIBRARIES ${BDM_REQUIRED_LIBRARIES} ${OPTIM_LIBNAME})
+# libbiodynamo loads the ParaView adaptor library with dlopen.
+set(BDM_REQUIRED_LIBRARIES ${BDM_REQUIRED_LIBRARIES} ${CMAKE_DL_LIBS})
 
 # --------------------Copy the launcher script ---------------------------------
 configure_file("cmake/env/launcher.sh" "${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/launcher.sh" @ONLY)
