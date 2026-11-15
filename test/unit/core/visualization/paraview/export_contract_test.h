@@ -49,6 +49,17 @@ class ExportContractAgent : public Cell {
   AgentPointer<Cell> pointer_field_;
 };
 
+/// An agent with a data member of a type that the export does not support.
+class UnsupportedFieldAgent : public Cell {
+  BDM_AGENT_HEADER(UnsupportedFieldAgent, Cell, 1);
+
+ public:
+  UnsupportedFieldAgent() = default;
+  virtual ~UnsupportedFieldAgent() = default;
+
+  bool bool_field_ = false;
+};
+
 }  // namespace export_contract_test_internal
 }  // namespace bdm
 
