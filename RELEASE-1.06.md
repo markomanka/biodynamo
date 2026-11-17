@@ -132,6 +132,15 @@ modified files carry a notice saying so, as the licence requires.
   every cell with the same interpreter and is very likely affected in the same way; it has not been tested on
   macOS. The two go away at different steps: the notebooks move to the xeus-cpp kernel in step 2, and the export to
   field tables generated at build time in step 3.
+
+  *Update, 15 November 2026:* on `master`, after this release, the ParaView export no longer uses ROOT's
+  interpreter (pull request #35): the adaptor is created through a registry and loaded directly, and the arrays for
+  the exported data members are compiled into the library. The macOS CI now runs the ParaView tests and an export
+  from a project outside the tree with the active SDK 15.5 and no 14 SDK. The change was planned for step 3 and was
+  brought forward because the incompatibility, reported upstream on 30 October as conda-forge/root-feedstock#396,
+  had received no reply, and current versions of macOS and Xcode come without the SDK it needs. Version 1.06 as
+  tagged is unchanged and keeps the limitation described above. The notebooks still depend on ROOT's kernel and
+  move to the `xeus-cpp` kernel in step 2, as planned.
 - **Spack** is supported by the same CMake option but not yet tested in CI.
 - **GPUs:** BioDynaMo's CUDA and OpenCL options are untouched but have not been tested with the new toolchain.
 

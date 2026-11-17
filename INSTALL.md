@@ -63,23 +63,36 @@ To update the environment after `environment.yml` changes: `conda env update -f 
   ([conda-forge/paraview-feedstock#342](https://github.com/conda-forge/paraview-feedstock/issues/342)). An
   environment created before needs updating: `conda env update -f environment.yml --prune`.
 
-- **macOS, ROOT's interpreter with a macOS 15 or newer SDK (October 2026):** conda-forge's ROOT 6.40.04
-  cannot build its module for `<stdint.h>` when the active macOS SDK is 15.x or 26.x ("libc.modulemap: header
-  'stdarg.h' not found"): its module map expects `stdarg.h` among the SDK's headers, which these SDKs no longer
-  ship. With a macOS 14 SDK it works. BioDynaMo features that make ROOT's interpreter read headers while running,
-  such as the ParaView export, fail. If a macOS 14 SDK is installed, for instance under
-  `/Library/Developer/CommandLineTools/SDKs`, point `SDKROOT` at it before running BioDynaMo. Another SDK of
-  version 15 or 26 does not help: it has to be a 14. `thisbdm.sh` checks the active SDK when it is sourced
-  and, if it is too new, says so and prints the `export SDKROOT=...` line for the 14 SDK it finds, or says
-  that none is installed. It does not set `SDKROOT` itself, because that variable also steers compilers.
-  Reported as
-  [conda-forge/root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396).
-  Until the export no longer uses the interpreter (step 3 of `SKUNKWORKS.md`), the ParaView export on macOS is
-  supported only with a macOS 14 SDK; without one it does not work. The macOS CI passes because its runner image
-  still ships a macOS 14 SDK, and each run's summary page says which SDK it used. In-situ visualization is not
-  supported on macOS, as in upstream. ROOT's notebook kernel, which also interprets code, is very likely
-  affected too and has not been tested on macOS; step 2 of `SKUNKWORKS.md` replaces it with the `xeus-cpp`
-  kernel.
+- **macOS, ROOT's interpreter with a macOS 15 or newer SDK (October 2026):** conda-forge's ROOT 6.40.04 cannot
+  build its module for `<stdint.h>` when the active macOS SDK is 15.x or 26.x ("libc.modulemap: header 'stdarg.h'
+  not found"): its module map expects `stdarg.h` among the SDK's headers, which these SDKs no longer ship. With a
+  macOS 14 SDK it works; another SDK of version 15 or 26 does not help. Reported on 30 October 2026 as
+  [conda-forge/root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396); by 15 November it had
+  received no reply.
+
+  What it affects is whatever makes ROOT's interpreter read headers while running.
+
+  **Simulations and the ParaView export are not affected** on `master` since November 2026 (pull request #35):
+  creating the ParaView adaptor and exporting agents no longer use the interpreter. This was planned for step 3 of
+  `SKUNKWORKS.md` and was brought forward, because the upstream report had no reply and current versions of macOS
+  and Xcode come without a macOS 14 SDK. The macOS CI runs the ParaView tests and an export from a project outside
+  the tree with the active SDK (15.5) and no 14 SDK, and fails if the dependency comes back. Version 1.06 as tagged
+  still has the limitation: there the ParaView export needs a macOS 14 SDK.
+
+  **ROOT's notebook kernel is still affected:** it interprets every cell, so it very likely fails in the same way;
+  it has not been tested on macOS. Step 2 of `SKUNKWORKS.md` replaces it with the `xeus-cpp` kernel, as planned,
+  and it is not worked around before then. Where a macOS 14 SDK is installed, for instance under
+  `/Library/Developer/CommandLineTools/SDKs`, point `SDKROOT` at it before starting notebooks. `thisbdm.sh` checks
+  the active SDK when it is sourced and, if it is too new, says what is and is not affected and prints the `export
+  SDKROOT=...` line for the 14 SDK it finds, or says that none is installed. It does not set `SDKROOT` itself,
+  because that variable also steers compilers.
+
+  One failed attempt damages the environment. When the interpreter tries to read headers with SDK 15 or newer, it
+  rebuilds a module file inside the conda environment (`lib/_Builtin_stdint.pcm`) and leaves it broken; later runs
+  then fail even with a macOS 14 SDK ("'__stdarg_header_macro.h' file not found"). This was seen in the CI.
+  Creating the environment again gives a clean one.
+
+  In-situ visualization is not supported on macOS, as in upstream.
 
 - **Linux, ParaView with Abseil 20260817 (November 2026):** conda-forge's current ParaView 6.2.0 build needs
   VTK 9.7.1, which requires gl2ps 1.4.3, while ROOT still requires gl2ps 1.4.2. With ROOT in the environment,
