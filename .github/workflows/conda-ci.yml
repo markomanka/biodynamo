@@ -4,7 +4,11 @@ name: Conda CI
 # (environment.yml): no Homebrew, no pyenv, no prebuilt bundles.
 
 on:
+  # Pushes run the checks on master only. A branch is checked through its
+  # pull request, on the same commit, so running both would do the work twice.
   push:
+    branches:
+      - master
   pull_request:
     branches:
       - master
