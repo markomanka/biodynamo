@@ -67,7 +67,7 @@ Physics fixes for agents accumulating at borders run in parallel (see below). `a
 | Who writes visualization files | `abm-io`, as VTKHDF from the generated field tables |
 | Dependency ecosystem | conda-forge by default, Spack for HPC clusters |
 | ParaView | conda-forge's ParaView 6.2 (legacy Catalyst) now; Catalyst 2 later; replaceable |
-| Plugin loading | Stays with ROOT until step 3, with the run-time code generation it depends on (see below) |
+| Plugin loading | The ParaView adaptor is registered by its library and loaded with `dlopen` (pull request #35, brought forward with the end of the run-time code generation; see below); other adaptor names stay with ROOT's plugin handlers until step 3 |
 
 ## Where ROOT is used today
 
@@ -95,29 +95,55 @@ conda-forge and Spack.
 | Notebooks | The `xeus-cpp` kernel (conda-forge) instead of ROOT's; PyVista for 3D views | Step 2 |
 | ROOT geometry viewer | Removed; ParaView and the file export cover its uses | Step 2 |
 | Reflection, checkpoints, parameter JSON, MPI messages | `abm-gen` and `abm-io`, with HDF5 files and nlohmann/json | Step 3 |
-| Cling's run-time code generation (agent export) | Generated field tables, which also end the ParaView export's need for a macOS 14 SDK | Step 3 |
-| Plugin loading | `dlopen` | Step 3, after the field tables |
+| Cling's run-time code generation (agent export) | Array types compiled into the library and chosen by the data member's type; then generated field tables in place of ROOT's dictionaries | Run-time generation removed (pull request #35), which ended the ParaView export's need for a macOS 14 SDK; field tables in step 3 |
+| Plugin loading | A registry of adaptors and `dlopen` | ParaView adaptor done (pull request #35); ROOT's plugin handlers for other adaptors in step 3 |
 | Building | ROOT, `rootcling` and the bundle downloads leave CMake | Step 3 |
 
-### Why plugin loading cannot leave ROOT before the field tables
+### Why plugin loading and the run-time code generation left ROOT together
 
-This was tried and reverted, and the reason is a dependency rather than a preference, so it is recorded here
-rather than only in the history (commit `1a2fb970`).
+Leaving plugin loading alone was tried and reverted, and the reason is a dependency rather than a preference, so
+it is recorded here rather than only in the history (commit `1a2fb970`).
 
-The ParaView agent export compiles code at run time with Cling, in `JitForEachDataMemberFunctor`. ROOT's
+The ParaView agent export compiled code at run time with Cling, in `JitForEachDataMemberFunctor`. ROOT's
 plugin manager loads the adaptor with `gSystem->Load`, which tells Cling about the library, and creates the
 adaptor by interpreting its constructor, which makes Cling load the adaptor's declarations. A bare `dlopen`
 does neither. On Linux Cling still found what it needed; on macOS it did not: with the adaptors opened by
 `dlopen`, `FLAKY_ParaviewIntegrationTest.ExportAgents_*` died on every attempt on macOS 26 with hundreds of
 Cling errors ("expected expression"), and a macOS 15 job hung until the six-hour limit. Through the plugin
-manager the same tests pass in 8 to 25 seconds with no Cling errors.
+manager the same tests pass in 8 to 25 seconds with no Cling errors. That attempt left no code behind;
+`shared_library.h` and its test were removed with the revert.
 
-So the two leave ROOT together, in step 3: once the generated field tables replace the run-time code
-generation, nothing needs Cling to know about the adaptor, and `dlopen` is enough. The attempt left no code
-behind; `shared_library.h` and its test were removed with the revert.
+So the two had to leave ROOT together, and that was planned for step 3, with the generated field tables. Found
+again by Aravind Raju during his review of v1.06, from the source rather than from this document, which is why
+the reasoning lives here.
 
-Found again by Aravind Raju during his review of v1.06, from the source rather than from this document,
-which is why the reasoning now lives here.
+**Brought forward in November 2026 (pull request #35).** The same review showed that the ParaView export did
+not work on current Macs at all: conda-forge's ROOT cannot read system headers with a macOS SDK of version 15
+or newer, only with a 14 SDK, which current versions of macOS and Xcode do not provide. The incompatibility
+was reported upstream on 30 October 2026
+([conda-forge/root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396)) and by
+15 November had received no reply. Rather than wait, the part of step 3 that removes the interpreter from the
+ParaView export was done at once, both halves together:
+
+- **Run-time code generation.** The data member types the export supports are few and fixed (`real_t`, `int`,
+  `uint64_t`, `AgentUid`, `AgentPointer`, and `MathArray` of the three numeric types), so `vtk_agents.cc`
+  compiles one array type for each and chooses by the member's type. A member of another type stops the
+  simulation with a message that names it.
+- **Plugin loading.** `VisualizationAdaptor::Register` records how to create an adaptor; the ParaView library
+  registers itself when loaded, and `VisualizationAdaptor::Create` loads it with `dlopen` from the folder of
+  `libbiodynamo`. Nothing needs Cling to know about the adaptor any more, which is why `dlopen` is now enough.
+
+What stays for step 3: the names, types and offsets of data members still come from ROOT's dictionaries, to be
+replaced by the generated field tables, and adaptors other than ParaView's still go through ROOT's plugin
+handlers. The tests were written to outlast that change. `ParaviewExportContractTest` looks only at the
+exported files (which arrays, with which types and values), and `VisualizationAdaptorTest` only at what any
+way of loading adaptors must do; neither depends on ROOT's dictionaries or interpreter. On macOS the Conda CI
+runs the ParaView tests and an export from a project outside the tree with the active SDK, and fails if the
+dependency on the interpreter comes back.
+
+What this does not cover: ROOT's notebook kernel interprets every cell and is still subject to the same
+incompatibility on macOS. It is not worked around; the notebooks move to the `xeus-cpp` kernel in step 2, as
+planned.
 
 ## Visualization
 
