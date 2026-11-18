@@ -11,6 +11,9 @@
 // regarding copyright ownership.
 //
 // -----------------------------------------------------------------------------
+//
+// Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+// (https://github.com/markomanka/biodynamo); see its git history.
 
 #ifndef CORE_ENVIRONMENT_UNIFORM_GRID_ENVIRONMENT_H_
 #define CORE_ENVIRONMENT_UNIFORM_GRID_ENVIRONMENT_H_
@@ -259,6 +262,12 @@ class UniformGridEnvironment : public Environment {
 
     void operator()(Agent* agent, AgentHandle ah) override {
       const auto& position = agent->GetPosition();
+      // An agent whose box cannot be computed used to make GetBoxIndex read
+      // out of bounds and crash without a word (seen in the flocking demo,
+      // see CI-COVERAGE.md). Say which agent and where instead.
+      if (!grid_->IsInsideGridBoxes(position)) {
+        grid_->ReportAgentOutsideGrid(agent);
+      }
       auto idx = grid_->GetBoxIndex(position);
       auto box = grid_->GetBoxPointer(idx);
       box->AddObject(ah, &(grid_->successors_), grid_);
@@ -348,6 +357,41 @@ class UniformGridEnvironment : public Environment {
 
   std::array<int32_t, 6> GetDimensions() const override {
     return grid_dimensions_;
+  }
+
+  /// Returns true if `position` is finite and falls in one of the grid's
+  /// boxes, so that GetBoxIndex returns a valid index for it. Computed in
+  /// floating point, so that a value that does not fit an int32_t is caught
+  /// before GetBoxIndex converts it.
+  bool IsInsideGridBoxes(const Real3& position) const {
+    for (int i = 0; i < 3; ++i) {
+      if (!std::isfinite(position[i])) {
+        return false;
+      }
+      auto coord = (std::floor(position[i]) -
+                    static_cast<double>(grid_dimensions_[2 * i])) /
+                   static_cast<double>(box_length_);
+      if (!(coord >= 0) || coord >= static_cast<double>(num_boxes_axis_[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Stops the simulation with a description of an agent that lies outside
+  /// the grid, and of the grid.
+  void ReportAgentOutsideGrid(const Agent* agent) const {
+    const auto& d = grid_dimensions_;
+    Log::Fatal("UniformGridEnvironment", "Agent ", agent->GetUid(), " (",
+               agent->GetTypeName(), ") at position ", agent->GetPosition(),
+               " with diameter ", agent->GetDiameter(),
+               " is outside the grid, so it cannot be put in a box. Grid: x ",
+               d[0], " to ", d[1], ", y ", d[2], " to ", d[3], ", z ", d[4],
+               " to ", d[5], "; box length ", box_length_, "; boxes per axis ",
+               num_boxes_axis_[0], ", ", num_boxes_axis_[1], ", ",
+               num_boxes_axis_[2],
+               ". A position that is not a number (nan) usually comes from a "
+               "division by zero in a behavior.");
   }
 
   /// Returns true if the provided point is inside the simulation domain.
