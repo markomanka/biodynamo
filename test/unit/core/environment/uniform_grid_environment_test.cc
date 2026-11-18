@@ -11,8 +11,13 @@
 // regarding copyright ownership.
 //
 // -----------------------------------------------------------------------------
+//
+// Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+// (https://github.com/markomanka/biodynamo); see its git history.
 
 #include "core/environment/uniform_grid_environment.h"
+
+#include <cmath>
 #include <sstream>
 #include <string>
 #include "core/agent/cell.h"
@@ -392,6 +397,28 @@ TEST(UniformGridEnvironmentDeathTest, CustomBoxLength) {
 // The UniformGridEnvironment environment uses a data structure based on boxes.
 // A single box can only hold a limited number of agents. This test checks if
 // the program fails when this limit is exceeded.
+// An agent whose position is not a number cannot be put in a box. The grid
+// used to crash on it without a word; it now names the agent.
+TEST(UniformGridEnvironmentDeathTest, AgentWithoutAValidPositionIsReported) {
+  ASSERT_DEATH(
+      {
+        Simulation simulation(TEST_NAME);
+        auto* rm = simulation.GetResourceManager();
+        auto* env =
+            dynamic_cast<UniformGridEnvironment*>(simulation.GetEnvironment());
+        for (int i = 0; i < 4; ++i) {
+          auto* cell = new Cell(10);
+          cell->SetPosition({20.0 * i, 0, 0});
+          rm->AddAgent(cell);
+        }
+        auto* lost = new Cell(10);
+        lost->SetPosition({std::nan(""), 0, 0});
+        rm->AddAgent(lost);
+        env->ForcedUpdate();
+      },
+      "Agent .* at position .*nan.* is outside the grid");
+}
+
 TEST(UniformGridEnvironmentDeathTest, TooManyAgents) {
   ASSERT_DEATH(
       {
