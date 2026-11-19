@@ -13,6 +13,9 @@
 // Author: Moritz Grabmann (2022)
 //
 // -----------------------------------------------------------------------------
+//
+// Modified in the BioDynaMo skunkworks fork by markomanka, 2026
+// (https://github.com/markomanka/biodynamo); see its git history.
 
 #ifndef BOID_H_
 #define BOID_H_
@@ -150,17 +153,20 @@ class Boid : public Agent {
   // ---------------------------------------------------------------------------
  private:
   Real3 position_, velocity_, heading_direction_, acceleration_;
-  real_t acceleration_accum_scalar;
-  real_t diameter_, actual_diameter_;
-  real_t boid_perception_radius_, boid_interaction_radius_;
-  real_t cos_perception_angle_;
-  real_t neighbor_distance_;
-  real_t max_acceleration_, max_speed_;
-  bool limit_speed_;
+  // Read by AccelerationAccumulator in the first step, before UpdateData has
+  // ever reset it: it must start at zero. Left uninitialized, it sometimes
+  // held a NaN, which made the boid's position NaN and crashed the grid.
+  real_t acceleration_accum_scalar = 0;
+  real_t diameter_ = 0, actual_diameter_ = 0;
+  real_t boid_perception_radius_ = 0, boid_interaction_radius_ = 0;
+  real_t cos_perception_angle_ = 0;
+  real_t neighbor_distance_ = 0;
+  real_t max_acceleration_ = 0, max_speed_ = 0;
+  bool limit_speed_ = false;
 
   // Flocking constants
-  real_t c_a_1_, c_a_2_, c_a_3_, c_y_;
-  real_t h_a_, eps_, d_t_;
+  real_t c_a_1_ = 0, c_a_2_ = 0, c_a_3_ = 0, c_y_ = 0;
+  real_t h_a_ = 0, eps_ = 0, d_t_ = 0;
   Real3 pos_gamma_;  // gamma agent location (common group objective)
 };
 
