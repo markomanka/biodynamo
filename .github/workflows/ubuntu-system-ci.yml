@@ -1,13 +1,10 @@
-# Runs the installation tests and valgrind tests in the following cases:
-#   1) every day at 3 am
-#   2) a pull request to the master branch
+# Runs the installation tests, valgrind and the demos for every pull request
+# to the master branch. There is no nightly run: master changes only through
+# pull requests, which have already run this. See CI-COVERAGE.md.
 
 name: Ubuntu System CI
 
 on:
-  schedule:
-    # Every day at 3 am
-    - cron: '0 3 * * *'
   pull_request:
     # Upon pull requests
     branches:
@@ -20,8 +17,10 @@ concurrency:
 jobs:
   build:
     strategy:
+      # A failure on one system does not stop the others: each result counts.
+      fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
+        os: [ubuntu-24.04, ubuntu-26.04]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -132,14 +131,14 @@ jobs:
 
     # Don't do this in the `Build BioDynaMo step`, because notebooks might time out in GHA
     # runners, while waiting for other targets to be compiled. Run notebooks only
-    # if the event is a pull request, and on ubuntu-22.04.
+    # if the event is a pull request, and on ubuntu-24.04.
     - name: Run notebooks
       shell: bash
       run: |
         export PATH="$HOME/.pyenv/bin:$PATH"
         eval "$(pyenv init --path)"
         eval "$(pyenv init -)"
-        pyenv shell 3.9.1
+        pyenv shell "$BDM_PYTHON_VERSION"
         cmake \
           -Dnotebooks=ON \
           -Dsbml=OFF \
@@ -148,7 +147,7 @@ jobs:
           -Dreal_t=${{ env.REALT }} \
           -B build
         cmake --build build --parallel --config Release --target notebooks  -- -j1
-      if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-22.04'
+      if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-24.04'
 
 
     - name: Build BioDynaMo
@@ -181,5 +180,9 @@ jobs:
         biodynamo new test-sim
         . ../test/util.inc
         run_cmake_simulation test-sim
-        make run-valgrind
+        # Valgrind takes 10 to 15 minutes and checks the same code on every
+        # leg, so one leg runs it.
+        if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
+          make run-valgrind
+        fi
         make run-demos

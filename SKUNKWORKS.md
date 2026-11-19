@@ -44,8 +44,9 @@ Physics fixes for agents accumulating at borders run in parallel (see below). `a
 - **Reported to conda-forge:** ParaView 6.2.0 for macOS linked a library that no package ships
   ([paraview-feedstock#342](https://github.com/conda-forge/paraview-feedstock/issues/342), fixed in build 2);
   ROOT 6.40.04 cannot include `<stdint.h>` with a macOS 15 or newer SDK
-  ([root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396), open: CI and
-  [INSTALL.md](INSTALL.md) use a macOS 14 SDK meanwhile); ParaView 6.2.0 used Abseil 20260526 without pinning it
+  ([root-feedstock#396](https://github.com/conda-forge/root-feedstock/issues/396), open, with no reply by
+  15 November 2026: the ParaView export no longer depends on it, the notebooks do until step 2, see
+  [INSTALL.md](INSTALL.md)); ParaView 6.2.0 used Abseil 20260526 without pinning it
   ([paraview-feedstock#345](https://github.com/conda-forge/paraview-feedstock/issues/345), fixed for new builds);
   with ROOT in the environment, solvers still pick old builds, because ROOT requires an older gl2ps than the new
   builds' VTK ([paraview-feedstock#348](https://github.com/conda-forge/paraview-feedstock/issues/348),
@@ -196,6 +197,11 @@ planned.
 | `fix/out-of-tree-projects` | Projects outside the source tree: C++ standard, NUMA, Homebrew's libomp; a CI check | Merged (pull request #12) |
 | `docs/release-1.06` | [RELEASE-1.06.md](RELEASE-1.06.md): release notes and adoption steps for the consortium | Merged (pull request #15); version 1.06 tagged as `v1.06` (pull request #18) |
 | `before-philox` | The state before the random-number switch, kept to reproduce earlier results | Reference branch |
+
+## What the continuous integration covers
+
+[CI-COVERAGE.md](CI-COVERAGE.md) lists what the checks of a pull request cover and what they leave out, with
+the reason for each gap and the condition for closing it.
 
 ## Installing this fork
 
