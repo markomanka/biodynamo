@@ -1,7 +1,11 @@
 name: repository-check
 
 on:
+  # Pushes run the checks on master only. A branch is checked through its
+  # pull request, on the same commit, so running both would do the work twice.
   push:
+    branches:
+      - master
   pull_request:
     branches:
       - master
@@ -12,6 +16,8 @@ concurrency:
 
 jobs:
   code-style:
+    # clang-format 14, the version the code is formatted with, is the default
+    # on Ubuntu 22.04 only. See CI-COVERAGE.md before moving this job.
     runs-on: ubuntu-22.04
 
     steps:
