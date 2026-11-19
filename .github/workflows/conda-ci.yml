@@ -98,28 +98,17 @@ jobs:
         sudo --preserve-env env "PATH=$PATH" "BUILD_UID=$(id -u)" "BUILD_GID=$(id -g)" \
           unshare --net bash "$RUNNER_TEMP/offline.sh"
 
-    # The macOS tests pass only if the runner image still ships a macOS 14 SDK,
-    # which the steps below select for ROOT's interpreter (INSTALL.md, "Known
-    # issues"). Say which SDK that is, or that there is none, on the run's
-    # summary page, so that a passing job is not read as working with the
-    # active SDK, and a failing one is not mistaken for a fault in BioDynaMo.
-    # The step does not fail the job: the tests that need the SDK do.
-    - name: Report the macOS SDK for ROOT's interpreter
+    # Since pull request #35 nothing that runs here needs a macOS 14 SDK, so
+    # every step uses the runner's active SDK, as users would.
+    - name: Report the macOS SDK
       if: runner.os == 'macOS'
       run: |
         active=$(xcrun --show-sdk-version)
         echo "Active macOS SDK: $active ($(xcrun --show-sdk-path))"
         echo "SDKs under the Command Line Tools:"
         ls -la /Library/Developer/CommandLineTools/SDKs || true
-        sdk14=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX14*.sdk 2>/dev/null | tail -1)
-        if [ -n "$sdk14" ]; then
-          resolved=$(cd "$sdk14" && pwd -P)
-          msg="The active SDK is $active; ROOT's interpreter uses $sdk14 ($resolved). The macOS tests pass only while the runner image ships a macOS 14 SDK (INSTALL.md, Known issues)."
-          echo "::notice title=macOS SDK::$msg"
-        else
-          msg="The active SDK is $active and this runner image has no macOS 14 SDK. conda-forge's ROOT 6.40.04 cannot read system headers with SDK 15 or newer, so the ParaView export tests will fail with \"header 'stdarg.h' not found\" (INSTALL.md, Known issues; conda-forge/root-feedstock#396)."
-          echo "::error title=macOS SDK::$msg"
-        fi
+        msg="Every macOS step runs with the active SDK, $active; none selects a macOS 14 SDK."
+        echo "::notice title=macOS SDK::$msg"
         echo "**macOS SDK.** $msg" >> "$GITHUB_STEP_SUMMARY"
 
     - name: Unit tests BioDynaMo
@@ -128,13 +117,6 @@ jobs:
         . bin/thisbdm.sh
         bdm config
         if [ "$RUNNER_OS" = Linux ]; then export DISPLAY=:99.0; fi
-        # conda-forge's ROOT 6.40.04 cannot build its module for <stdint.h>
-        # with a macOS 15 or newer SDK (INSTALL.md, "Known issues"); a macOS 14
-        # SDK, where the runner has one, works.
-        if [ "$RUNNER_OS" = macOS ]; then
-          sdk14=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX14*.sdk 2>/dev/null | tail -1)
-          if [ -n "$sdk14" ]; then export SDKROOT="$sdk14"; echo "ROOT's interpreter uses $SDKROOT"; fi
-        fi
         ninja run-unit-tests
 
     - name: Build and run a project outside BioDynaMo's tree
@@ -146,10 +128,6 @@ jobs:
         if ! grep -qE -- "-std=(c|gnu)\+\+${std}( |$)" out-of-tree/build.ninja; then
           echo "::error::the project did not compile with ROOT's C++${std}"
           exit 1
-        fi
-        if [ "$RUNNER_OS" = macOS ]; then
-          sdk14=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX14*.sdk 2>/dev/null | tail -1)
-          if [ -n "$sdk14" ]; then export SDKROOT="$sdk14"; fi
         fi
         (cd out-of-tree && ./cell_division)
 
@@ -165,10 +143,6 @@ jobs:
         . "$prefix/bin/thisbdm.sh"
         bdm config
         if [ "$RUNNER_OS" = Linux ]; then export DISPLAY=:99.0; fi
-        if [ "$RUNNER_OS" = macOS ]; then
-          sdk14=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX14*.sdk 2>/dev/null | tail -1)
-          if [ -n "$sdk14" ]; then export SDKROOT="$sdk14"; fi
-        fi
         (cd "$prefix" && bin/biodynamo-unit-tests)
         cp -r demo/cell_division "$RUNNER_TEMP/cell_division"
         cmake -G Ninja -S "$RUNNER_TEMP/cell_division" -B "$RUNNER_TEMP/cell_division/build" -DCMAKE_BUILD_TYPE=Release
