@@ -196,6 +196,7 @@ planned.
 | `ci/retire-macos` | Old macOS CI retired; Abseil pinned until ParaView is rebuilt | Merged (pull request #10) |
 | `fix/out-of-tree-projects` | Projects outside the source tree: C++ standard, NUMA, Homebrew's libomp; a CI check | Merged (pull request #12) |
 | `docs/release-1.06` | [RELEASE-1.06.md](RELEASE-1.06.md): release notes and adoption steps for the consortium | Merged (pull request #15); version 1.06 tagged as `v1.06` (pull request #18) |
+| `mm/release-1.07` | Version 1.07, the ParaView export without ROOT's interpreter: [RELEASE-1.07.md](RELEASE-1.07.md) | Tagged `v1.07` on `master` |
 | `before-philox` | The state before the random-number switch, kept to reproduce earlier results | Reference branch |
 
 ## What the continuous integration covers
