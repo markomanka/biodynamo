@@ -12,12 +12,24 @@ on:
   pull_request:
     branches:
       - master
+  # macOS 26 once a week on master; it reports and does not block merges
+  # (CI-COVERAGE.md, "Platforms").
+  schedule:
+    - cron: '0 4 * * 1'
   # Started by hand, so a run can be repeated when a job fails for reasons
-  # outside the code, such as a runner that never starts.
+  # outside the code, such as a runner that never starts; with "newest_macos"
+  # ticked, it runs the macOS 26 leg instead.
   workflow_dispatch:
+    inputs:
+      newest_macos:
+        description: Run on macOS 26 instead of Ubuntu 24.04 and macOS 15
+        type: boolean
+        default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # The weekly run has a group of its own, so that it and a push to master do
+  # not cancel each other.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,7 +37,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15]
+        # The platforms shared with abm-io (CI-COVERAGE.md, "Platforms").
+        os: ${{ fromJSON((github.event_name == 'schedule' || inputs.newest_macos) && '["macos-26"]' || '["ubuntu-24.04", "macos-15"]') }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
