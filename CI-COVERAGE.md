@@ -11,7 +11,7 @@ State: 18 November 2026.
 
 | Workflow | Runs for | Machines | What it checks |
 | --- | --- | --- | --- |
-| Conda CI | Pull requests to `master`; pushes to `master`; by hand | Ubuntu 24.04, macOS 15 (Apple Silicon) | The recommended installation: every dependency from conda-forge, nothing downloaded during the build. The whole unit test suite; a project built outside the source tree; an installed copy, its unit tests, and `cell_division` run from it with and without the ParaView export. On macOS every step runs with the runner's active SDK, and the ParaView tests and that export run once more from the installation, last |
+| Conda CI | Pull requests to `master`; pushes to `master`; by hand; weekly on macOS 26 | Ubuntu 24.04, macOS 15 (Apple Silicon); macOS 26 weekly or by hand | The recommended installation: every dependency from conda-forge, nothing downloaded during the build. The whole unit test suite; a project built outside the source tree; an installed copy, its unit tests, and `cell_division` run from it with and without the ParaView export. On macOS every step runs with the runner's active SDK, and the ParaView tests and that export run once more from the installation, last |
 | Ubuntu CI | Pull requests to `master`; pushes to `master` | Ubuntu 24.04, 26.04 | Upstream's installation, with the bundled ROOT and ParaView: build with ParaView, benchmarks and libgit2; the whole unit test suite |
 | Ubuntu System CI | Pull requests to `master` | Ubuntu 24.04, 26.04 | Upstream's installation again: a project made with `biodynamo new`; the unit tests under valgrind (24.04 only); every demo; the system tests in `test/system`; the notebooks (24.04 only) |
 | repository-check | Pull requests to `master`; pushes to `master` | Ubuntu 22.04 | clang-format 14 and the copyright headers. It stays on 22.04, whose default clang-format is version 14; on 24.04 the default is newer and formats differently. Before 22.04's runners are retired, it must install clang-format 14 explicitly or the code be reformatted |
@@ -39,9 +39,25 @@ exercised here on that day, and what they found is recorded below.
 | Build and push devcontainer image | Disabled by GitHub, as in every fork | Never ran here |
 | Update gitpod integration repository | By hand only | Not used |
 
-Nothing runs on a schedule. Upstream ran the Ubuntu System CI every night at 3:00 UTC; here `master` changes
-only through pull requests, which have already run it. GitHub did start the nightly run in the fork, but late:
-on 15 November 2026 it began at 10:28 UTC.
+One thing runs on a schedule: the Conda CI on macOS 26, on Mondays at 04:00 UTC (see *Platforms*). Upstream
+ran the Ubuntu System CI every night at 3:00 UTC; here `master` changes only through pull requests, which
+have already run it. GitHub did start the nightly run in the fork, but late: on 15 November 2026 it began at
+10:28 UTC.
+
+## Platforms
+
+The same policy holds in abm-io (`docs/QUALITY-GATES.md` there), since the two are to be adopted together; a
+change to it is made in both repositories, by a pair of pull requests.
+
+- **Ubuntu: the two newest LTS releases GitHub hosts**, today 24.04 and 26.04, on every pull request.
+- **macOS 15 on every pull request**, through conda-forge.
+- **macOS 26 once a week**, on Mondays at 04:00 UTC on the default branch, and by hand, through
+  conda-forge. It reports and does not block merges, because macOS runners are often short.
+- **Both move together.** When GitHub hosts a new Ubuntu LTS or macOS release, both repositories take it,
+  and drop the oldest, in the same pair of pull requests.
+
+Here the code-style job still runs on Ubuntu 22.04, for its clang-format 14, which is a tool and not a
+platform under test; it has to move before GitHub retires 22.04 runners in spring 2027.
 
 ## What is not checked
 
@@ -54,7 +70,7 @@ on 15 November 2026 it began at 10:28 UTC.
 | Errors a demo prints | Ignored. A demo passes when it prints "Simulation completed successfully!" and at least one demo wrote a ParaView state file. `flocking` used to set `pos_gamma` with a type name ROOT cannot find (`bdm::MathArray<real_t,3>`), so its value was silently ignored; corrected in patch 0062 to `bdm::MathArray<double,3>`, which a build with `-Dreal_t=float` would not read | The demo script looks for nothing else | Next: make an "Error in <...>" from a demo fail it |
 | GPU code: CUDA, OpenCL, `mechanical_forces_op_gpu_test`, `cell_division_gpu` | Not built, not run | No runner has a GPU | A machine with a GPU is available as a self-hosted runner |
 | SBML: `-Dsbml=ON`, `sbml_integration` | Not built, not run | Off in every workflow; its dependency is not in `environment.yml` | Step 2 decides whether SBML stays |
-| macOS beyond the Conda CI job: demos, system tests, notebooks; macOS 26; Intel Macs | Not run | The old macOS workflows are by hand only, and macOS runners are scarce | By hand before each release; a macOS 26 leg in the Conda CI once the macOS job is reliable to obtain |
+| macOS beyond the Conda CI job: demos, system tests, notebooks; Intel Macs | Not run | The old macOS workflows are by hand only, and macOS runners are scarce | By hand before each release |
 | In-situ visualization on macOS | Six tests compiled out (`#ifndef __APPLE__` in `integration_test.cc`) | As in upstream: not supported there | In-situ visualization is supported on macOS |
 | Spack | Not tested | No workflow | A user needs BioDynaMo on a cluster through Spack |
 | Five unit tests: `DISABLED_DiffusionTest.WrongParameters` and `.ModelInitializer`, `DISABLED_Force.GeneralSphereCylinder` and `.GeneralCylinder`, `DISABLED_NeuronSomaNeuriteElementTest.Displacement` | Switched off in the source | As in upstream; no reason recorded | Tried one at a time: each is switched on, or deleted with the reason |
