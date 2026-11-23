@@ -127,6 +127,12 @@ ParaView as before. Expect it to stop working on new Macs as Homebrew disables `
 
 - **"ROOT was not found in the environment"**: the environment is not active, or it lacks ROOT. Run
   `conda activate biodynamo` and check that `root-config --version` works.
+- **"The active conda environment ... does not contain ROOT"**: CMake found a conda environment, but not this
+  repository's (for example Miniforge's `base`, or one with ParaView alone). Activate the environment created from
+  `environment.yml`; or, for the upstream method, deactivate conda or pass `-DBDM_SYSTEM_DEPENDENCIES=OFF`. Before
+  this check (November 2026) such a configuration took the upstream method silently and stopped later, on macOS
+  with "The link interface of target \"ParaView::protobuf\" contains protobuf::libprotobuf, but the target was not
+  found".
 - **"ParaView was not found in the environment"**: install `paraview` in the environment, or configure with
   `-Dparaview=OFF`.
 - **A build directory configured with the upstream method**: start from an empty build directory, because CMake
