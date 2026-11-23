@@ -76,6 +76,23 @@ if(DEFINED ENV{CONDA_PREFIX} AND EXISTS "$ENV{CONDA_PREFIX}/bin/root-config")
 else()
   set(_bdm_system_dependencies_default OFF)
 endif()
+# An active conda environment without ROOT would otherwise select the upstream
+# method silently, which then mixes the environment's libraries with the
+# bundles (on macOS: "ParaView::protobuf ... protobuf::libprotobuf ... not
+# found" and Homebrew's Python 3.9). Stop and say so, unless the choice was
+# made explicitly. Checked before option(), which would define the variable.
+if(DEFINED ENV{CONDA_PREFIX} AND NOT _bdm_system_dependencies_default
+   AND NOT DEFINED CACHE{BDM_SYSTEM_DEPENDENCIES})
+  message(FATAL_ERROR
+    "The active conda environment ($ENV{CONDA_PREFIX}) does not contain ROOT, "
+    "so CMake cannot tell whether BioDynaMo should take its dependencies from "
+    "it. To use conda-forge (recommended): create and activate the environment "
+    "of this repository (\"conda env create -f environment.yml\", then "
+    "\"conda activate biodynamo\") and configure again in an empty build "
+    "directory. To use the upstream method with downloaded bundles instead: "
+    "run \"conda deactivate\" until no environment is active, or configure "
+    "with -DBDM_SYSTEM_DEPENDENCIES=OFF. See INSTALL.md.")
+endif()
 option(BDM_SYSTEM_DEPENDENCIES
        "Use ROOT, ParaView and Python from the active environment; never download bundles"
        ${_bdm_system_dependencies_default})
