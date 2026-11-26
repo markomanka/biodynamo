@@ -1,9 +1,9 @@
 # BioDynaMo 1.07: the ParaView export without ROOT's interpreter
 
 *Release notes for the BioDynaMo consortium. The version is tagged `v1.07` on `master`, at the merge of the pull
-request that adds this note. It builds on [version 1.06](RELEASE-1.06.md), whose notes remain the reference for
-the move to community-maintained dependencies and for the new random numbers; this note lists only what changed
-since.*
+request that records its validation on macOS (see *How it was tested*). It builds on
+[version 1.06](RELEASE-1.06.md), whose notes remain the reference for the move to community-maintained
+dependencies and for the new random numbers; this note lists only what changed since.*
 
 *Marco Manca, with Claude (Anthropic). [SKUNKWORKS.md](SKUNKWORKS.md) describes the fork and its plan.*
 
@@ -56,12 +56,23 @@ and the default used.
 The uniform grid now checks each agent's position before placing it. An agent it cannot place stops the
 simulation with its uid, type, position and diameter and the grid's bounds, instead of a segmentation fault.
 
+### Installation
+
+Configuring from an active conda environment that does not contain ROOT (for example Miniforge's `base`, or an
+environment holding ParaView alone) now stops at once, with the two ways out: activate the environment created
+from `environment.yml`, or choose the upstream method explicitly. Before, it fell back silently to the upstream
+method and failed later; on macOS 26.7.1 this was reported on 23 November 2026 as "The link interface of target
+\"ParaView::protobuf\" contains protobuf::libprotobuf, but the target was not found". An explicit
+`-DBDM_SYSTEM_DEPENDENCIES` is respected, and nothing changes without an active conda environment.
+
 ### Continuous integration
 
 [CI-COVERAGE.md](CI-COVERAGE.md) lists every workflow, what it checks, what it does not and why, and what must
 be true before each gap is closed. The main changes since 1.06:
 
-- Each pull request is checked once; pushes start the checks only on `master`, and nothing runs on a schedule.
+- Each pull request is checked once; pushes start the checks only on `master`. The only scheduled run is the
+  Conda CI on macOS 26, weekly and by hand, which reports without blocking (the platform policy shared with
+  [abm-io](https://github.com/markomanka/abm-io), in CI-COVERAGE.md).
 - Ubuntu 22.04 is no longer tested, from 17 November 2026; the Ubuntu CI and the System CI run on 24.04 and
   26.04. Valgrind runs on 24.04 only. One failing system no longer cancels the others.
 - The Ubuntu System CI (valgrind, every demo, the system tests and the notebooks) first ran in this fork on
@@ -95,6 +106,12 @@ them with generated field tables.
 - The pull request that sets this version passed every check listed in CI-COVERAGE.md: the Conda CI on Ubuntu
   24.04 and macOS 15 with the active SDK and no 14 SDK, the Ubuntu CI and the Ubuntu System CI on 24.04 and 26.04,
   the Singularity integration and the repository checks.
+- The Conda CI on macOS 26, started by hand on 21 November 2026 on `master`, passed.
+- **By hand on macOS, by Aravind Raju**, on 25 November 2026, as CI-COVERAGE.md asks before each release: commit
+  `8d83be3d` of `master`, macOS 26.7.1 (25G241) on Apple Silicon, SDK 15.4, Release build, dependencies from
+  conda-forge (Python 3.14.10, ParaView 6.2.0, Protobuf 35.1.0, ROOT found in the environment). The build
+  succeeded and the unit tests passed (CTest target `biodynamo-unit-tests`, 1/1, 111.77 s). Demos, system tests
+  and notebooks were not part of this run. The commits between `8d83be3d` and the tag change documentation only.
 - New tests since 1.06: what the ParaView export of agents must produce, what any way of loading adaptors must
   do, the grid's check of agent positions, and the logging and probability density helpers.
 
@@ -116,6 +133,9 @@ and the grid's check, so either can be taken alone.
 | #26, #31, #42 | macOS CI: report the SDK, run every step on the active SDK, the ParaView tests last |
 | #41 | One CI run per pull request; valgrind on one machine; Ubuntu 22.04 dropped; CI-COVERAGE.md |
 | #42 | `flocking` reads its `pos_gamma`; two entries in CI-COVERAGE.md |
+| #45 | Configuration stops when the active conda environment has no ROOT |
+| #44 | The platform policy shared with abm-io; the Conda CI on macOS 26 weekly and by hand |
+| #43 | Version 1.07.0 and this note |
 | #19, #32, #34 | CI started by hand; actions on Node 24; a valgrind suppression for `std::thread` |
 | #24 | Tests for logging and for the two probability densities |
 | #20, #21, #22, #27, #28, #37 | Documentation: random numbers, plugin loading, macOS SDK, the reasons for bringing #35 forward |
