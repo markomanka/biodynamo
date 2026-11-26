@@ -5,7 +5,7 @@ the checks behind it, so this page lists what they cover and, more importantly, 
 gap, why it is there and what has to be true before it is closed. Whoever changes a workflow, switches a test
 off or finds something the CI overlooks updates this page in the same pull request.
 
-State: 18 November 2026.
+State: 26 November 2026.
 
 ## What runs
 
@@ -15,7 +15,6 @@ State: 18 November 2026.
 | Ubuntu CI | Pull requests to `master`; pushes to `master` | Ubuntu 24.04, 26.04 | Upstream's installation, with the bundled ROOT and ParaView: build with ParaView, benchmarks and libgit2; the whole unit test suite |
 | Ubuntu System CI | Pull requests to `master` | Ubuntu 24.04, 26.04 | Upstream's installation again: a project made with `biodynamo new`; the unit tests under valgrind (24.04 only); every demo; the system tests in `test/system`; the notebooks (24.04 only) |
 | repository-check | Pull requests to `master`; pushes to `master` | Ubuntu 22.04 | clang-format 14 and the copyright headers. It stays on 22.04, whose default clang-format is version 14; on 24.04 the default is newer and formats differently. Before 22.04's runners are retired, it must install clang-format 14 explicitly or the code be reformatted |
-| Singularity Integration | Pull requests; pushes to `master` | Ubuntu | The Singularity image builds and runs |
 
 A pull request is checked once: pushes to other branches start nothing, because the pull request runs the same
 checks on the same commit.
@@ -35,6 +34,7 @@ exercised here on that day, and what they found is recorded below.
 | Workflow | State | Note |
 | --- | --- | --- |
 | macOS CI, macOS System CI | By hand only, since pull request #10 | Upstream's installation on macOS, through Homebrew and the bundles; last run on 30 October 2026, failed. The Conda CI covers macOS instead |
+| Singularity Integration | By hand only, since 26 November 2026 | Its definition (`Singularity`, Ubuntu 20.04) clones upstream BioDynaMo, `github.com/BioDynaMo/biodynamo`, and checks out the pull request's branch, which does not exist there, so it built upstream's `master`. It never checked this fork, although it ran on every pull request: its passes before 26 November say nothing about the fork's code. Reinstate when the definition builds the fork's commit and passes |
 | Sonar Source Analysis | Disabled by hand | Needs a SonarCloud project and token that the fork does not have |
 | Build and push devcontainer image | Disabled by GitHub, as in every fork | Never ran here |
 | Update gitpod integration repository | By hand only | Not used |
@@ -96,6 +96,14 @@ platform under test; it has to move before GitHub retires 22.04 runners in sprin
 
   Valgrind would have reported the uninitialized read, but it runs only on the unit tests, not on the demos: see
   the table above.
+
+- **Every job with upstream's installation failed on 26 November 2026** (Ubuntu CI, Ubuntu System CI, both
+  systems; job 139960259800 among them) while building OptimLib: `fatal error: armadillo: No such file or
+  directory`. OptimLib's `configure` clones Armadillo from `gitlab.com/conradsnicta/armadillo-code` when it finds
+  no headers, and hides the clone's errors; on 26 November that repository asked for credentials. The Conda CI was
+  not affected, since it passes the environment's Armadillo. Fixed in patch 0066: upstream's installation takes
+  Armadillo from the system (`libarmadillo-dev`, added to the Ubuntu package lists and to the Ubuntu CI), and
+  configuration stops with a message when the headers are missing.
 
 ## Reading a failed check
 
