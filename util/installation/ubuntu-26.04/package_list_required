@@ -3,6 +3,7 @@ curl
 g++-11
 gcc-11
 git
+libarmadillo-dev
 libblas-dev
 libboost-dev
 libbz2-dev

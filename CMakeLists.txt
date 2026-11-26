@@ -653,7 +653,10 @@ include(ExternalProject)
 # from GitLab when it finds none. With dependencies from an environment,
 # Armadillo comes from there, so that the build downloads nothing; current
 # Armadillo needs C++14, which OptimLib's Makefile anticipates but leaves
-# commented out, so make overrides its C++11.
+# commented out, so make overrides its C++11. With upstream's method the
+# headers come from the system (libarmadillo-dev on Ubuntu): since November
+# 2026 the GitLab repository asks for credentials, so the clone fails, and
+# OptimLib's configure hides the failure until the compiler misses the header.
 set(OPTIM_CONFIGURE_ENV "")
 set(OPTIM_BUILD_COMMAND "")
 if(BDM_SYSTEM_DEPENDENCIES)
@@ -661,6 +664,16 @@ if(BDM_SYSTEM_DEPENDENCIES)
   if(NOT BDM_ARMADILLO_INCLUDE_DIR)
     message(FATAL_ERROR "Armadillo's headers were not found in the environment. "
                         "Install the armadillo package, which environment.yml lists.")
+  endif()
+  set(OPTIM_CONFIGURE_ENV ${CMAKE_COMMAND} -E env "ARMA_INCLUDE_PATH=${BDM_ARMADILLO_INCLUDE_DIR}")
+  set(OPTIM_BUILD_COMMAND BUILD_COMMAND make "CXX_STD=-std=c++14")
+else()
+  find_path(BDM_ARMADILLO_INCLUDE_DIR armadillo)
+  if(NOT BDM_ARMADILLO_INCLUDE_DIR)
+    message(FATAL_ERROR "Armadillo's headers were not found. Install them "
+                        "(on Ubuntu: libarmadillo-dev, which the package lists "
+                        "in util/installation name); OptimLib can no longer "
+                        "download them.")
   endif()
   set(OPTIM_CONFIGURE_ENV ${CMAKE_COMMAND} -E env "ARMA_INCLUDE_PATH=${BDM_ARMADILLO_INCLUDE_DIR}")
   set(OPTIM_BUILD_COMMAND BUILD_COMMAND make "CXX_STD=-std=c++14")

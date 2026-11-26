@@ -1,11 +1,10 @@
 name: Singularity Integration
 
+# By hand only: the definition in `Singularity` clones upstream BioDynaMo,
+# not this fork, so its result says nothing about a change here; see
+# CI-COVERAGE.md, "Switched off in this fork".
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
